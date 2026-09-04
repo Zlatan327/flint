@@ -3,9 +3,12 @@
 import { ArrowUpRight, Menu, Radio, Wallet, X } from "lucide-react";
 import { useState } from "react";
 import { navItems } from "@/lib/flint-data";
+import { useFlintWallet } from "@/contexts/WalletContext";
+import { WalletModal } from "@/components/wallet/WalletModal";
 
 export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { connected, walletAddress, balance, setIsModalOpen, disconnectWallet } = useFlintWallet();
 
   return (
     <header className="topbar">
@@ -35,12 +38,59 @@ export function TopBar() {
         <button className="icon-button mobile-menu" type="button" aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={() => setMenuOpen((open) => !open)}>
           {menuOpen ? <X size={16} /> : <Menu size={16} />}
         </button>
-        <button className="wallet-button" type="button" onClick={() => alert("Wallet adapter connection is ready for integration.")}>
-          <Wallet size={15} />
-          <span>CONNECT WALLET</span>
-          <ArrowUpRight size={14} />
-        </button>
+
+        {connected && walletAddress ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div
+              className="mono"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "rgba(16, 185, 129, 0.08)",
+                border: "1px solid rgba(16, 185, 129, 0.25)",
+                padding: "6px 12px",
+                borderRadius: "6px",
+                fontSize: "0.78rem",
+              }}
+            >
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
+              <span style={{ color: "#fff", fontWeight: 600 }}>
+                {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+              </span>
+              {balance !== null && (
+                <span style={{ color: "#10b981", background: "rgba(16, 185, 129, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
+                  {balance.toFixed(3)} SOL
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={disconnectWallet}
+              style={{
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                color: "rgba(255, 255, 255, 0.5)",
+                fontSize: "0.7rem",
+                padding: "6px 10px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.5)")}
+            >
+              DISCONNECT
+            </button>
+          </div>
+        ) : (
+          <button className="wallet-button" type="button" onClick={() => setIsModalOpen(true)}>
+            <Wallet size={15} />
+            <span>CONNECT WALLET</span>
+            <ArrowUpRight size={14} />
+          </button>
+        )}
       </div>
+      <WalletModal />
     </header>
   );
 }
