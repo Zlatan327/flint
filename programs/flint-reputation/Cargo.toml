@@ -1,0 +1,21 @@
+[package]
+name = "flint-reputation"
+version = "0.1.0"
+description = "Flint Soulbound Token (SBT) & On-Chain Developer Reputation Registry"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "flint_reputation"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }
+solana-program = "1.18.20"
+mpl-core = { version = "0.3.0", features = ["cpi"] }
