@@ -19,7 +19,9 @@ from agents.scout import ScoutAgent, BuilderProfile
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
 
-FLINT_ESCROW_PROGRAM_ID = Pubkey.from_string("FLiNTEscrow111111111111111111111111111111111")
+FLINT_ESCROW_PROGRAM_ID = Pubkey.from_string("2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h")
+FLINT_MARKET_PROGRAM_ID = Pubkey.from_string("95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3")
+FLINT_REPUTATION_PROGRAM_ID = Pubkey.from_string("J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg")
 RPC_URL = "https://api.devnet.solana.com"
 WSS_URL = "wss://api.devnet.solana.com"
 
