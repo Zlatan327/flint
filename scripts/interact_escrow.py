@@ -14,9 +14,10 @@ import time
 import json
 import struct
 import hashlib
+import asyncio
 from pathlib import Path
 
-from solana.rpc.api import Client
+from solana.rpc.async_api import AsyncClient
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.instruction import Instruction, AccountMeta
@@ -41,22 +42,21 @@ def load_payer() -> Keypair:
             return Keypair.from_bytes(bytes(data))
     else:
         print(f"Keypair not found at {default_path}, generating temporary keypair...")
-        kp = Keypair()
-        return kp
+        return Keypair()
 
 
-def main():
+async def main():
     print("=" * 60)
     print("⚡ FLINT PROTOCOL: LIVE SOLANA DEVNET INTERACTION")
     print("=" * 60)
 
-    client = Client(DEVNET_RPC)
+    client = AsyncClient(DEVNET_RPC)
     payer = load_payer()
     print(f"[*] Connected to: {DEVNET_RPC}")
     print(f"[*] Client / Payer Wallet: {payer.pubkey()}")
 
     # Check balance
-    balance_resp = client.get_balance(payer.pubkey())
+    balance_resp = await client.get_balance(payer.pubkey())
     balance_sol = balance_resp.value / 1_000_000_000
     print(f"[*] Wallet Balance: {balance_sol:.4f} SOL")
 
@@ -135,12 +135,13 @@ def main():
     print("  [2] flint_escrow::deposit_escrow (Locks 0.01 SOL in Vault PDA)")
     print("  [3] flint_escrow::delegate_to_ephemeral_rollup (Transfers state authority to MagicBlock ER)")
 
-    latest_blockhash = client.get_latest_blockhash().value.blockhash
+    latest_blockhash_resp = await client.get_latest_blockhash()
+    latest_blockhash = latest_blockhash_resp.value.blockhash
     msg = Message([init_ix, deposit_ix, delegate_ix], payer.pubkey())
     tx = Transaction([payer], msg, latest_blockhash)
 
     print("\nSubmitting transaction to Solana Devnet cluster...")
-    resp = client.send_transaction(tx)
+    resp = await client.send_transaction(tx)
     tx_sig = str(resp.value)
 
     print("\n" + "=" * 60)
@@ -153,6 +154,8 @@ def main():
     print("=" * 60)
     print("Status: Escrow is funded and delegated to MagicBlock Ephemeral Rollup runtime! ⚡\n")
 
+    await client.close()
+
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
