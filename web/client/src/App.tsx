@@ -9,10 +9,15 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { WalletProvider } from "./contexts/WalletContext";
 import Home from "./pages/Home";
 
+import GigExchangePage from "./pages/GigExchangePage";
+import PredictionMarketPage from "./pages/PredictionMarketPage";
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/exchange" component={GigExchangePage} />
+      <Route path="/markets" component={PredictionMarketPage} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

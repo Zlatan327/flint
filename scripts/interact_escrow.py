@@ -93,14 +93,14 @@ async def main():
 
     # 1. Instruction: initialize_gig
     init_disc = hashlib.sha256(b"global:initialize_gig").digest()[:8]
-    init_data = init_disc + struct.pack("<QQBq", gig_id, total_amount_lamports, milestones_count, deadline)
+    # format: gig_id (u64), total_amount (u64), milestones_count (u8), deadline (i64), settlement_model_code (u8)
+    init_data = init_disc + struct.pack("<QQBqB", gig_id, total_amount_lamports, milestones_count, deadline, 0)
     init_ix = Instruction(
         program_id=ESCROW_PROGRAM_ID,
         data=init_data,
         accounts=[
             AccountMeta(pubkey=gig_escrow_pda, is_signer=False, is_writable=True),
             AccountMeta(pubkey=payer.pubkey(), is_signer=True, is_writable=True),
-            AccountMeta(pubkey=freelancer, is_signer=False, is_writable=False),
             AccountMeta(pubkey=SYSTEM_PROGRAM_ID, is_signer=False, is_writable=False),
         ]
     )

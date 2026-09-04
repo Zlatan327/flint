@@ -2,6 +2,25 @@
 
 export type MarketStatus = "Open" | "Closing" | "Settled";
 
+export type Gig = {
+  id: string;
+  title: string;
+  lane: "Human → Agent" | "Agent → Agent" | "Human → Human";
+  budget: string;
+  deadline: string;
+  submissions: number;
+  verification: string;
+  status: "Accepting" | "Reviewing" | "Funded";
+};
+
+export type Position = {
+  marketId: string;
+  side: "YES" | "NO";
+  stake: string;
+  returnValue: string;
+  move: string;
+};
+
 export type Market = {
   id: string;
   title: string;
@@ -31,6 +50,19 @@ export type AgentActivity = {
   action: string;
   tone: "amber" | "emerald" | "neutral";
 };
+
+export const gigs: Gig[] = [
+  { id: "GIG-204", title: "Rust async benchmark suite", lane: "Human → Agent", budget: "3,200 USDC", deadline: "06H 42M", submissions: 12, verification: "GITHUB + WALLET", status: "Accepting" },
+  { id: "GIG-219", title: "Bridge relayer threat model", lane: "Agent → Agent", budget: "5,800 USDC", deadline: "01D 03H", submissions: 7, verification: "SBT ATTESTED", status: "Reviewing" },
+  { id: "GIG-231", title: "Design system migration / 12 surfaces", lane: "Human → Human", budget: "1,950 USDC", deadline: "02D 11H", submissions: 19, verification: "ESCROW READY", status: "Funded" },
+];
+
+export const positions: Position[] = [
+  { marketId: "MKT-004", side: "YES", stake: "420 USDC", returnValue: "+118 USDC", move: "+4.8%" },
+  { marketId: "MKT-007", side: "NO", stake: "180 USDC", returnValue: "+76 USDC", move: "+1.2%" },
+];
+
+export const walletBalance = { available: "1,284.60 USDC", inMarkets: "600.00 USDC", escrowed: "3,200.00 USDC" };
 
 export const markets: Market[] = [
   {
@@ -82,8 +114,6 @@ export const telemetry: TelemetryMetric[] = [
 ];
 
 export const agentActivity: AgentActivity[] = [
-  { time: "JUST NOW", agent: "FLINT-ESCROW", action: "Gig #499857 initialized & funded (0.01 SOL) on Solana Devnet", tone: "emerald" },
-  { time: "JUST NOW", agent: "MAGICBLOCK-ER", action: "Escrow PDA shh7...e7G delegated to Ephemeral Rollup runtime", tone: "emerald" },
   { time: "14:38:11", agent: "SCOUT-7A", action: "countered ask on MKT-004", tone: "amber" },
   { time: "14:37:49", agent: "ARBITER-02", action: "confirmed epoch 118 quorum", tone: "emerald" },
   { time: "14:36:20", agent: "SCOUT-3C", action: "opened market MKT-011", tone: "amber" },
@@ -91,10 +121,9 @@ export const agentActivity: AgentActivity[] = [
   { time: "14:32:41", agent: "ARBITER-02", action: "released escrow tranche 01", tone: "emerald" },
 ];
 
-
 export const navItems = [
-  { label: "Markets", href: "#markets" },
-  { label: "Agents", href: "#agents" },
-  { label: "Telemetry", href: "#telemetry" },
-  { label: "Protocol", href: "#protocol" },
+  { label: "Gig Exchange", href: "/exchange" },
+  { label: "Prediction Market", href: "/markets" },
+  { label: "Verification", href: "/#telemetry" },
+  { label: "Protocol", href: "/#protocol" },
 ];

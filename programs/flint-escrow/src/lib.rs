@@ -17,21 +17,47 @@ pub mod flint_escrow {
         total_amount: u64,
         milestones_count: u8,
         deadline_timestamp: i64,
+        settlement_model_code: u8,
     ) -> Result<()> {
         let gig = &mut ctx.accounts.gig_escrow;
         gig.client = ctx.accounts.client.key();
-        gig.freelancer = ctx.accounts.freelancer.key();
+        gig.freelancer = Pubkey::default();
+        gig.is_freelancer_assigned = false;
         gig.gig_id = gig_id;
         gig.total_amount = total_amount;
         gig.remaining_amount = total_amount;
         gig.milestones_count = milestones_count;
         gig.completed_milestones = 0;
         gig.deadline = deadline_timestamp;
+        
+        gig.settlement_model = match settlement_model_code {
+            0 => SettlementModel::Bounty,
+            _ => SettlementModel::Contest,
+        };
+
         gig.status = EscrowStatus::Initialized;
         gig.is_delegated_to_er = false;
         gig.bump = ctx.bumps.gig_escrow;
 
         msg!("Flint: Gig #{} initialized for {} lamports", gig_id, total_amount);
+        Ok(())
+    }
+
+    /// Assigns the freelancer to the gig (used to claim a bounty or lock in a contest winner)
+    pub fn assign_freelancer(ctx: Context<AssignFreelancer>) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        require!(!gig.is_freelancer_assigned, EscrowError::FreelancerAlreadyAssigned);
+        
+        // In a real production environment, you might restrict who can call this
+        // based on the settlement_model. For example:
+        // If Bounty -> any caller can assign themselves.
+        // If Contest -> only the client can assign the winner.
+        // For simplicity, we just assign the freelancer pubkey passed in.
+        
+        gig.freelancer = ctx.accounts.freelancer.key();
+        gig.is_freelancer_assigned = true;
+
+        msg!("Flint: Freelancer {} assigned to Gig #{}", gig.freelancer, gig.gig_id);
         Ok(())
     }
 
@@ -111,6 +137,7 @@ pub mod flint_escrow {
     /// and triggers a CPI to mint the Soulbound Token (SBT) via flint-reputation
     pub fn commit_and_settle_escrow(ctx: Context<SettleEscrow>) -> Result<()> {
         let gig = &mut ctx.accounts.gig_escrow;
+        require!(gig.is_freelancer_assigned, EscrowError::NoFreelancerAssigned);
         require!(
             gig.status == EscrowStatus::ReadyForSettlement || gig.completed_milestones > 0,
             EscrowError::NotReadyForSettlement
@@ -173,9 +200,19 @@ pub struct InitializeGig<'info> {
     pub gig_escrow: Account<'info, GigEscrow>,
     #[account(mut)]
     pub client: Signer<'info>,
-    /// CHECK: Target freelancer public key verified by client
-    pub freelancer: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AssignFreelancer<'info> {
+    #[account(
+        mut,
+        has_one = client @ EscrowError::Unauthorized,
+    )]
+    pub gig_escrow: Account<'info, GigEscrow>,
+    pub client: Signer<'info>,
+    /// CHECK: The freelancer being assigned to the gig
+    pub freelancer: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -274,12 +311,20 @@ pub struct GigEscrow {
     pub milestones_count: u8,
     pub completed_milestones: u8,
     pub status: EscrowStatus,
+    pub settlement_model: SettlementModel,
+    pub is_freelancer_assigned: bool,
     pub is_delegated_to_er: bool,
     pub bump: u8,
 }
 
 impl GigEscrow {
-    pub const LEN: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 1 + 16;
+    pub const LEN: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 16;
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+pub enum SettlementModel {
+    Bounty,
+    Contest,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
@@ -306,4 +351,8 @@ pub enum EscrowError {
     InsufficientFunds,
     #[msg("Escrow is not ready for settlement")]
     NotReadyForSettlement,
+    #[msg("Freelancer has already been assigned to this gig")]
+    FreelancerAlreadyAssigned,
+    #[msg("No freelancer has been assigned to this gig yet")]
+    NoFreelancerAssigned,
 }

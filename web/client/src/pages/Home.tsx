@@ -1,10 +1,9 @@
-// Black Ledger style reminder: compose from explicit protocol modules; the page should read like an operator console, not a centered landing page.
+// Black Ledger style reminder: FLINT has two primary jobs—exchange work anonymously and price delivery risk. Supporting telemetry never competes with those workspaces.
 
 import { ChevronUp, Github, Shield, Zap } from "lucide-react";
+import { Link } from "wouter";
 import { HeroBanner } from "@/components/layout/HeroBanner";
 import { TopBar } from "@/components/layout/TopBar";
-import { MarketBoard } from "@/components/markets/MarketBoard";
-import { ScoutTerminal } from "@/components/agents/ScoutTerminal";
 import { TelemetryRail } from "@/components/telemetry/TelemetryRail";
 import { ProtocolStrip } from "@/components/protocol/ProtocolStrip";
 import { SBTPanel } from "@/components/protocol/SBTPanel";
@@ -15,21 +14,19 @@ export default function Home() {
       <TopBar />
       <main>
         <HeroBanner />
-        <div className="dashboard-shell">
-          <div className="dashboard-primary">
-            <MarketBoard />
-            <div className="lower-grid">
-              <ScoutTerminal />
-              <SBTPanel />
-            </div>
-          </div>
+        <div className="workspace-nav" aria-label="FLINT workspaces">
+          <Link href="/exchange"><span className="workspace-nav-index mono">01</span><strong>GIG EXCHANGE</strong><span>Find, submit, fund</span></Link>
+          <Link href="/markets"><span className="workspace-nav-index mono">02</span><strong>PREDICTION MARKET</strong><span>Bet, track, settle</span></Link>
+        </div>
+        <div className="support-stage">
           <TelemetryRail />
+          <SBTPanel />
         </div>
         <ProtocolStrip />
       </main>
       <footer className="site-footer">
         <div className="footer-brand"><span className="brand-mark brand-mark-small" aria-hidden="true"><span className="brand-mark-cut" /></span><span className="brand-name">FLINT</span><span className="mono">PROTOCOL / V1</span></div>
-        <div className="footer-links"><a href="#protocol"><Shield size={13} /> TRUST LAYER</a><a href="#agents"><Zap size={13} /> AGENT RUNTIME</a><a target="_blank" href="https://github.com/Zlatan327/asp" rel="noreferrer"><Github size={13} /> SOURCE / GITHUB</a></div>
+        <div className="footer-links"><a href="#protocol"><Shield size={13} /> TRUST LAYER</a><a href="#exchange"><Zap size={13} /> GIG EXCHANGE</a><a href="#markets"><Github size={13} /> PREDICTION BOOK</a></div>
         <a className="back-top mono" href="#top">BACK TO TOP <ChevronUp size={13} /></a>
       </footer>
     </div>

@@ -2,6 +2,7 @@
 
 import { ArrowUpRight, Menu, Radio, Wallet, X } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 import { navItems } from "@/lib/flint-data";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { WalletModal } from "@/components/wallet/WalletModal";
@@ -12,20 +13,20 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <a className="brand-lockup" href="#top" aria-label="FLINT home">
+      <Link href="/" className="brand-lockup" aria-label="FLINT home">
         <span className="brand-mark" aria-hidden="true">
           <span className="brand-mark-cut" />
         </span>
         <span className="brand-name">FLINT</span>
         <span className="brand-subtitle">GIG PROTOCOL</span>
-      </a>
+      </Link>
 
       <nav className={`topbar-nav ${menuOpen ? "topbar-nav-open" : ""}`} aria-label="Primary navigation">
         {navItems.map((item, index) => (
-          <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
+          <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
             <span className="nav-index">0{index + 1}</span>
             {item.label}
-          </a>
+          </Link>
         ))}
       </nav>
 
