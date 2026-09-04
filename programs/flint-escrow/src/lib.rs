@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
-use ephemeral_rollups_sdk::cpi::delegate_account;
 use flint_reputation::cpi::accounts::RecordCompletion;
 use flint_reputation::program::FlintReputation;
 use flint_reputation::BuilderPassport;
