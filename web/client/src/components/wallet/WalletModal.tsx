@@ -1,6 +1,33 @@
 import React from "react";
 import { X, ExternalLink, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useFlintWallet, WalletOption } from "@/contexts/WalletContext";
+import {
+  PhantomIcon,
+  SolflareIcon,
+  BackpackIcon,
+  CoinbaseIcon,
+  OKXIcon,
+  FlintSignerIcon,
+} from "./WalletIcons";
+
+const renderWalletIcon = (iconId: string) => {
+  switch (iconId) {
+    case "phantom":
+      return <PhantomIcon size={32} />;
+    case "solflare":
+      return <SolflareIcon size={32} />;
+    case "backpack":
+      return <BackpackIcon size={32} />;
+    case "coinbase":
+      return <CoinbaseIcon size={32} />;
+    case "okx":
+      return <OKXIcon size={32} />;
+    case "flint":
+      return <FlintSignerIcon size={32} />;
+    default:
+      return <div style={{ width: 32, height: 32, borderRadius: 6, background: "#333" }} />;
+  }
+};
 
 export const WalletModal: React.FC = () => {
   const { isModalOpen, setIsModalOpen, availableWallets, connectWallet, connecting } = useFlintWallet();
@@ -106,7 +133,9 @@ export const WalletModal: React.FC = () => {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ fontSize: "1.3rem" }}>{wallet.icon}</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {renderWalletIcon(wallet.icon)}
+                </div>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{wallet.name}</span>
@@ -147,6 +176,8 @@ export const WalletModal: React.FC = () => {
         </div>
 
         {/* Modal Footer */}
+
+
         <div
           style={{
             padding: "1rem 1.5rem",
