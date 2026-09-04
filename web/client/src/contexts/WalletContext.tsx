@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { WalletConnectModal } from "@walletconnect/modal";
 
 export interface WalletOption {
   id: string;
@@ -18,12 +19,33 @@ interface WalletContextType {
   balance: number | null;
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
+  openWalletConnect: () => Promise<void>;
   connectWallet: (wallet: WalletOption) => Promise<void>;
   disconnectWallet: () => void;
   availableWallets: WalletOption[];
 }
 
 const DEVNET_RPC = "https://api.devnet.solana.com";
+const WC_PROJECT_ID = "3a8170812b534d0ff9d794f19a901d64";
+
+let wcModalInstance: WalletConnectModal | null = null;
+
+const getWalletConnectModal = (): WalletConnectModal | null => {
+  if (typeof window === "undefined") return null;
+  if (!wcModalInstance) {
+    wcModalInstance = new WalletConnectModal({
+      projectId: WC_PROJECT_ID,
+      chains: ["solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"],
+      themeMode: "dark",
+      themeVariables: {
+        "--wcm-accent-color": "#3B99FC",
+        "--wcm-background-color": "#0a0c10",
+        "--wcm-z-index": "99999",
+      },
+    });
+  }
+  return wcModalInstance;
+};
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
@@ -64,9 +86,18 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return [
       {
+        id: "walletconnect",
+        name: "WalletConnect",
+        icon: "walletconnect",
+        url: "https://walletconnect.com/",
+        description: "Universal QR code for 300+ mobile & desktop wallets",
+        isInstalled: true,
+        detect: () => ({ isWalletConnect: true }),
+      },
+      {
         id: "phantom",
         name: "Phantom",
-        icon: "🟣",
+        icon: "phantom",
         url: "https://phantom.app/download",
         description: "Leading Solana wallet & browser extension",
         isInstalled: Boolean(win.phantom?.solana?.isPhantom || win.solana?.isPhantom),
@@ -75,7 +106,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       {
         id: "solflare",
         name: "Solflare",
-        icon: "🟠",
+        icon: "solflare",
         url: "https://solflare.com/",
         description: "High-performance native Solana wallet",
         isInstalled: Boolean(win.solflare?.isSolflare),
@@ -84,7 +115,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       {
         id: "backpack",
         name: "Backpack",
-        icon: "🎒",
+        icon: "backpack",
         url: "https://backpack.app/",
         description: "Developer-first xNFT wallet by Coral",
         isInstalled: Boolean(win.backpack?.isBackpack),
@@ -93,7 +124,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       {
         id: "coinbase",
         name: "Coinbase Wallet",
-        icon: "🔵",
+        icon: "coinbase",
         url: "https://www.coinbase.com/wallet",
         description: "Official Coinbase self-custody wallet",
         isInstalled: Boolean(win.coinbaseSolana),
@@ -102,16 +133,43 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       {
         id: "okx",
         name: "OKX Wallet",
-        icon: "⚪",
+        icon: "okx",
         url: "https://www.okx.com/web3",
         description: "Universal multi-chain Web3 wallet",
         isInstalled: Boolean(win.okxwallet?.solana),
         detect: () => win.okxwallet?.solana || null,
       },
       {
+        id: "trust",
+        name: "Trust Wallet",
+        icon: "trust",
+        url: "https://trustwallet.com/",
+        description: "Mobile & browser multi-chain wallet",
+        isInstalled: Boolean(win.trustwallet?.solana),
+        detect: () => win.trustwallet?.solana || null,
+      },
+      {
+        id: "rainbow",
+        name: "Rainbow Wallet",
+        icon: "rainbow",
+        url: "https://rainbow.me/",
+        description: "Fun, simple, and secure mobile wallet",
+        isInstalled: Boolean(win.rainbow),
+        detect: () => win.rainbow || null,
+      },
+      {
+        id: "ledger",
+        name: "Ledger",
+        icon: "ledger",
+        url: "https://www.ledger.com/",
+        description: "Hardware security wallet connection",
+        isInstalled: false,
+        detect: () => null,
+      },
+      {
         id: "devnet_demo",
         name: "Flint Devnet Signer",
-        icon: "⚡",
+        icon: "flint",
         url: "",
         description: "Live Codespace deployer wallet (0.05 SOL)",
         isInstalled: true,
@@ -121,6 +179,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }),
       },
     ];
+
+
   }, []);
 
   const [availableWallets, setAvailableWallets] = useState<WalletOption[]>([]);
@@ -129,10 +189,29 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAvailableWallets(getWallets());
   }, [getWallets]);
 
+  const openWalletConnect = useCallback(async () => {
+    try {
+      setIsModalOpen(false);
+      const modal = getWalletConnectModal();
+      if (modal) {
+        await modal.openModal();
+      }
+    } catch (err: any) {
+      console.error("WalletConnect open error:", err);
+    }
+  }, []);
+
   // Connect handler
   const connectWallet = async (wallet: WalletOption) => {
     try {
       setConnecting(true);
+
+      if (wallet.id === "walletconnect") {
+        await openWalletConnect();
+        setConnecting(false);
+        return;
+      }
+
       const provider = wallet.detect();
 
       if (!provider) {
@@ -198,6 +277,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         balance,
         isModalOpen,
         setIsModalOpen,
+        openWalletConnect,
         connectWallet,
         disconnectWallet,
         availableWallets,

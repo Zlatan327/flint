@@ -1,62 +1,198 @@
 import React from "react";
 
-export const PhantomIcon: React.FC<{ size?: number }> = ({ size = 32 }) => (
-  <svg width={size} height={size} viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="128" height="128" rx="26" fill="#AB9FF2" />
-    <path
-      d="M102.3 84.1c-3.1 7.8-10.4 14.1-19.4 16.4-14.8 3.8-30.8 1.4-43.9-6.5-6.7-4-12.2-9.6-15.6-16.5-3.3-6.6-4.4-14.1-3.2-21.4 1.2-7.2 4.6-13.8 9.8-18.9 5.4-5.2 12.2-8.7 19.6-10 13.9-2.5 28.3 1.5 39 10.7 7.7 6.6 12.8 15.6 14.3 25.6 1.4 9.3-.6 18.7-4.6 27.1z"
-      fill="white"
-    />
-    <path d="M68 60a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM48 60a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" fill="#AB9FF2" />
-  </svg>
+const WC_PROJECT_ID = "3a8170812b534d0ff9d794f19a901d64";
+
+interface IconProps {
+  size?: number;
+  className?: string;
+}
+
+export const WalletConnectIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <div
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      background: "#3B99FC",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+      overflow: "hidden",
+    }}
+    className={className}
+  >
+    <svg width={Math.round(size * 0.65)} height={Math.round(size * 0.65)} viewBox="0 0 300 185" fill="none">
+      <path
+        d="M59.4 34.6C109.4 -15.4 190.6 -15.4 240.6 34.6L246.6 40.6C249 43 249 47 246.6 49.4L225.8 70.2C224.6 71.4 222.6 71.4 221.4 70.2L213.2 62C178.2 27 121.8 27 86.8 62L78.6 70.2C77.4 71.4 75.4 71.4 74.2 70.2L53.4 49.4C51 47 51 43 53.4 40.6L59.4 34.6ZM287.6 81.6L306.4 100.4C308.8 102.8 308.8 106.8 306.4 109.2L222.2 193.4C219.8 195.8 215.8 195.8 213.4 193.4L154.2 134.2C153.6 133.6 152.6 133.6 152 134.2L92.8 193.4C90.4 195.8 86.4 195.8 84 193.4L0 109.4C-2.4 107 -2.4 103 0 100.6L18.8 81.8C21.2 79.4 25.2 79.4 27.6 81.8L86.8 141C87.4 141.6 88.4 141.6 89 141L148.2 81.8C150.6 79.4 154.6 79.4 157 81.8L216.2 141C216.8 141.6 217.8 141.6 218.4 141L277.6 81.8C280 79.2 284.8 79.2 287.6 81.6Z"
+        fill="#ffffff"
+      />
+    </svg>
+  </div>
 );
 
-export const SolflareIcon: React.FC<{ size?: number }> = ({ size = 32 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100" height="100" rx="22" fill="#18181B" />
-    <path
-      d="M49.9 18c-3.1 7.2-5.4 15-2.2 23.3 2.8 7.3 8.3 13 11.8 20.2 4.8 9.9 3.5 21.6-3.8 29.8 11.2-5.4 18.6-17.1 17.5-29.8-.8-9.4-6.3-17.7-11.8-25.2-3.8-5.3-8.2-11.7-11.5-18.3z"
-      fill="#FC6E38"
-    />
-    <path
-      d="M50.1 82c3.1-7.2 5.4-15 2.2-23.3-2.8-7.3-8.3-13-11.8-20.2-4.8-9.9-3.5-21.6 3.8-29.8-11.2 5.4-18.6 17.1-17.5 29.8.8 9.4 6.3 17.7 11.8 25.2 3.8 5.3 8.2 11.7 11.5 18.3z"
-      fill="#F83B00"
-    />
-  </svg>
+export const PhantomIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <img
+    src={`https://explorer-api.walletconnect.com/v3/logo/md/b6ec7b81-bb4f-427d-e290-7631e6e50d00?projectId=${WC_PROJECT_ID}`}
+    alt="Phantom"
+    width={size}
+    height={size}
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      objectFit: "contain",
+      display: "block",
+      flexShrink: 0,
+    }}
+    className={className}
+  />
 );
 
-export const BackpackIcon: React.FC<{ size?: number }> = ({ size = 32 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100" height="100" rx="22" fill="#E33E38" />
-    <path d="M38 28c0-3.5 2.8-6 6-6h12c3.5 0 6 2.5 6 6v6H38v-6z" fill="#991B1B" />
-    <rect x="28" y="34" width="44" height="44" rx="10" fill="#FFFFFF" />
-    <rect x="34" y="44" width="32" height="26" rx="6" fill="#DC2626" />
-    <rect x="46" y="44" width="8" height="6" rx="2" fill="#FFFFFF" />
-  </svg>
+export const SolflareIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <img
+    src={`https://explorer-api.walletconnect.com/v3/logo/md/34c0e38d-66c4-470e-1aed-a6fabe2d1e00?projectId=${WC_PROJECT_ID}`}
+    alt="Solflare"
+    width={size}
+    height={size}
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      objectFit: "contain",
+      display: "block",
+      flexShrink: 0,
+    }}
+    className={className}
+  />
 );
 
-export const CoinbaseIcon: React.FC<{ size?: number }> = ({ size = 32 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100" height="100" rx="22" fill="#0052FF" />
-    <circle cx="50" cy="50" r="26" fill="white" />
-    <rect x="43" y="43" width="14" height="14" rx="3" fill="#0052FF" />
-  </svg>
+export const BackpackIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <img
+    src={`https://explorer-api.walletconnect.com/v3/logo/md/71ca9daf-a31e-4d2a-fd01-f5dc2dc66900?projectId=${WC_PROJECT_ID}`}
+    alt="Backpack"
+    width={size}
+    height={size}
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      objectFit: "contain",
+      display: "block",
+      flexShrink: 0,
+    }}
+    className={className}
+  />
 );
 
-export const OKXIcon: React.FC<{ size?: number }> = ({ size = 32 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100" height="100" rx="22" fill="#0A0A0A" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />
-    <rect x="26" y="26" width="20" height="20" rx="4" fill="white" />
-    <rect x="54" y="26" width="20" height="20" rx="4" fill="white" />
-    <rect x="40" y="40" width="20" height="20" rx="4" fill="black" />
-    <rect x="26" y="54" width="20" height="20" rx="4" fill="white" />
-    <rect x="54" y="54" width="20" height="20" rx="4" fill="white" />
-  </svg>
+export const CoinbaseIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <img
+    src={`https://explorer-api.walletconnect.com/v3/logo/md/04c88bf0-f115-4686-8c29-90a3d018a400?projectId=${WC_PROJECT_ID}`}
+    alt="Coinbase Wallet"
+    width={size}
+    height={size}
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      objectFit: "contain",
+      display: "block",
+      flexShrink: 0,
+    }}
+    className={className}
+  />
 );
 
-export const FlintSignerIcon: React.FC<{ size?: number }> = ({ size = 32 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100" height="100" rx="22" fill="#064E3B" border="1px solid #10B981" />
-    <path d="M54 18L32 52h18l-4 28 22-34H50l4-28z" fill="#10B981" />
-  </svg>
+export const OKXIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <img
+    src={`https://explorer-api.walletconnect.com/v3/logo/md/45f2f08e-fc0c-4d62-3e63-404e72170500?projectId=${WC_PROJECT_ID}`}
+    alt="OKX Wallet"
+    width={size}
+    height={size}
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      objectFit: "contain",
+      display: "block",
+      flexShrink: 0,
+    }}
+    className={className}
+  />
 );
+
+export const TrustWalletIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <img
+    src={`https://explorer-api.walletconnect.com/v3/logo/md/7677b54f-3486-46e2-4e37-bf8747814f00?projectId=${WC_PROJECT_ID}`}
+    alt="Trust Wallet"
+    width={size}
+    height={size}
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      objectFit: "contain",
+      display: "block",
+      flexShrink: 0,
+    }}
+    className={className}
+  />
+);
+
+export const RainbowIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <img
+    src={`https://explorer-api.walletconnect.com/v3/logo/md/7a33d7f1-3d12-4b5c-f3ee-5cd83cb1b500?projectId=${WC_PROJECT_ID}`}
+    alt="Rainbow Wallet"
+    width={size}
+    height={size}
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      objectFit: "contain",
+      display: "block",
+      flexShrink: 0,
+    }}
+    className={className}
+  />
+);
+
+export const LedgerIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <img
+    src={`https://explorer-api.walletconnect.com/v3/logo/md/a7f416de-aa03-4c5e-3280-ab49269aef00?projectId=${WC_PROJECT_ID}`}
+    alt="Ledger"
+    width={size}
+    height={size}
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      objectFit: "contain",
+      display: "block",
+      flexShrink: 0,
+    }}
+    className={className}
+  />
+);
+
+export const FlintSignerIcon: React.FC<IconProps> = ({ size = 32, className = "" }) => (
+  <div
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.22),
+      background: "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
+      border: "1px solid rgba(16, 185, 129, 0.4)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    }}
+    className={className}
+  >
+    <svg width={Math.round(size * 0.55)} height={Math.round(size * 0.55)} viewBox="0 0 24 24" fill="none">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#10B981" />
+    </svg>
+  </div>
+);
+
