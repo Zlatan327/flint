@@ -1,25 +1,21 @@
 #!/bin/bash
 set -e
 
-echo "⬆️ Updating host Rust to stable to fix registry parsing bug..."
-rustup default stable
-rustup update stable
+echo "⬇️ Using Rust 1.84.1 to generate a lockfile safely..."
+# We use 1.84.1 because it is new enough to not crash on "edition=2024" crates,
+# but old enough to generate a v3 Cargo.lock that your Solana compiler can read.
+rustup install 1.84.1
+rustup default 1.84.1
 
 echo "🧹 Clearing Cargo cache..."
 rm -rf ~/.cargo/registry/index/* ~/.cargo/registry/cache/* ~/.cargo/registry/src/*
 
-echo "⬇️ Resolving dependencies (automatically downgrading 2024 edition crates)..."
-# Because we added rust-version="1.75" to Cargo.toml, the modern Cargo 
-# will automatically avoid the broken 2024 edition crates.
+echo "🔄 Generating new Cargo.lock..."
+# By deleting the v4 lockfile, Rust 1.84.1 will generate a fresh v3 lockfile.
+# Because of rust-version="1.75" in Cargo.toml, it will automatically downgrade
+# all dependencies to avoid the broken 2024 crates! No manual downgrades needed!
+rm -f Cargo.lock
 cargo generate-lockfile
-
-# Just in case, let's still force the downgrades if the automatic resolution missed any.
-cargo update -p indexmap --precise 2.5.0 || true
-cargo update -p zeroize_derive --precise 1.4.2 || true
-cargo update -p toml_datetime --precise 0.6.8 || true
-cargo update -p digest --precise 0.10.7 || true
-cargo update -p block-buffer --precise 0.10.3 || true
-cargo update -p winnow --precise 0.6.18 || true
 
 echo "🚀 Running anchor build..."
 anchor build
