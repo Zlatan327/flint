@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("FLiNTMarket111111111111111111111111111111111");
+declare_id!("95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3");
 
 #[program]
 pub mod flint_market {

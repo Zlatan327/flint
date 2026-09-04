@@ -4,7 +4,7 @@ use flint_reputation::cpi::accounts::RecordCompletion;
 use flint_reputation::program::FlintReputation;
 use flint_reputation::BuilderPassport;
 
-declare_id!("FLiNTEscrow111111111111111111111111111111111");
+declare_id!("2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h");
 
 #[program]
 pub mod flint_escrow {

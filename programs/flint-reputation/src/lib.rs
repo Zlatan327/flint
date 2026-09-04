@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("FLiNTSBT111111111111111111111111111111111111");
+declare_id!("J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg");
 
 #[program]
 pub mod flint_reputation {

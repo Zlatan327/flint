@@ -6,12 +6,12 @@ solana_version = "1.18.20"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-flint_escrow = "FLiNTEscrow111111111111111111111111111111111"
-flint_market = "FLiNTMarket111111111111111111111111111111111"
-flint_reputation = "FLiNTSBT111111111111111111111111111111111111"
-
 [programs.devnet]
+flint_escrow = "2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h"
+flint_market = "95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3"
+flint_reputation = "J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg"
+
+[programs.localnet]
 flint_escrow = "FLiNTEscrow111111111111111111111111111111111"
 flint_market = "FLiNTMarket111111111111111111111111111111111"
 flint_reputation = "FLiNTSBT111111111111111111111111111111111111"
@@ -24,11 +24,5 @@ cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 quant = "python sdk-python/flint_quant/examples/velocity_arb.py"
-
-[magicblock]
-ephemeral_rpc = "https://devnet.magicblock.app"
-ephemeral_ws = "wss://devnet.magicblock.app"
-router = "https://router.magicblock.app"
-intel_tdx_tee = true
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
