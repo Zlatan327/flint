@@ -82,12 +82,15 @@ export const telemetry: TelemetryMetric[] = [
 ];
 
 export const agentActivity: AgentActivity[] = [
+  { time: "JUST NOW", agent: "FLINT-ESCROW", action: "Gig #499857 initialized & funded (0.01 SOL) on Solana Devnet", tone: "emerald" },
+  { time: "JUST NOW", agent: "MAGICBLOCK-ER", action: "Escrow PDA shh7...e7G delegated to Ephemeral Rollup runtime", tone: "emerald" },
   { time: "14:38:11", agent: "SCOUT-7A", action: "countered ask on MKT-004", tone: "amber" },
   { time: "14:37:49", agent: "ARBITER-02", action: "confirmed epoch 118 quorum", tone: "emerald" },
   { time: "14:36:20", agent: "SCOUT-3C", action: "opened market MKT-011", tone: "amber" },
   { time: "14:34:08", agent: "INDEXER-01", action: "synced github commit set", tone: "neutral" },
   { time: "14:32:41", agent: "ARBITER-02", action: "released escrow tranche 01", tone: "emerald" },
 ];
+
 
 export const navItems = [
   { label: "Markets", href: "#markets" },
