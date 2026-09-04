@@ -27,6 +27,34 @@ export function ProtocolStrip() {
           </div>
         ))}
       </div>
+
+      <div style={{ marginTop: "1.5rem", padding: "1rem", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.4)", borderRadius: "6px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+          <span className="mono" style={{ fontSize: "0.75rem", color: "#10b981", letterSpacing: "0.05em", fontWeight: 600 }}>● SOLANA DEVNET LIVE CONTRACTS</span>
+          <span className="mono" style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>CLUSTER / DEVNET</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "0.75rem", fontSize: "0.75rem" }}>
+          <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.5rem 0.75rem", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <span style={{ color: "rgba(255,255,255,0.5)", display: "block", fontSize: "0.65rem" }}>ESCROW PROGRAM</span>
+            <a href="https://explorer.solana.com/address/2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h?cluster=devnet" target="_blank" rel="noreferrer" className="mono" style={{ color: "#38bdf8", textDecoration: "none", wordBreak: "break-all" }}>
+              2PQb...QD6h ↗
+            </a>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.5rem 0.75rem", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <span style={{ color: "rgba(255,255,255,0.5)", display: "block", fontSize: "0.65rem" }}>MARKET PROGRAM</span>
+            <a href="https://explorer.solana.com/address/95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3?cluster=devnet" target="_blank" rel="noreferrer" className="mono" style={{ color: "#38bdf8", textDecoration: "none", wordBreak: "break-all" }}>
+              95ZE...J7e3 ↗
+            </a>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.5rem 0.75rem", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <span style={{ color: "rgba(255,255,255,0.5)", display: "block", fontSize: "0.65rem" }}>SBT REPUTATION PROGRAM</span>
+            <a href="https://explorer.solana.com/address/J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg?cluster=devnet" target="_blank" rel="noreferrer" className="mono" style={{ color: "#38bdf8", textDecoration: "none", wordBreak: "break-all" }}>
+              J6JQ...AAWg ↗
+            </a>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
+
