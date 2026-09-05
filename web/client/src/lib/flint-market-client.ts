@@ -411,3 +411,82 @@ export async function placeMarketOrderOnChain(
     explorerUrl: `https://explorer.solana.com/tx/${txSignature}?cluster=devnet`,
   };
 }
+
+export const MARKET_RAKE_BPS = 100; // 1.00% protocol market rake
+
+export interface MarketPayoutSplit {
+  grossSol: number;
+  marketRakeSol: number;
+  traderPayoutSol: number;
+  rakePercentage: number;
+}
+
+export function calculateMarketPayoutSplit(grossSol: number): MarketPayoutSplit {
+  const rake = (grossSol * MARKET_RAKE_BPS) / 10000;
+  const net = grossSol - rake;
+  return {
+    grossSol,
+    marketRakeSol: Number(rake.toFixed(4)),
+    traderPayoutSol: Number(net.toFixed(4)),
+    rakePercentage: 1.0,
+  };
+}
+
+/**
+ * Claims resolved market payout on-chain with protocol rake deduction
+ */
+export async function claimMarketPayoutOnChain(
+  marketPdaStr: string,
+  traderPubkey: PublicKey,
+  provider: any
+): Promise<string> {
+  const connection = new Connection(DEVNET_RPC, "confirmed");
+  const marketPda = new PublicKey(marketPdaStr);
+
+  const [vaultPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault"), marketPda.toBuffer()],
+    MARKET_PROGRAM_ID
+  );
+
+  const [positionPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("position"), marketPda.toBuffer(), traderPubkey.toBuffer()],
+    MARKET_PROGRAM_ID
+  );
+
+  // Derive protocol treasury PDA from escrow program
+  const ESCROW_PROGRAM_ID = new PublicKey("2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h");
+  const [treasuryPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("treasury")],
+    ESCROW_PROGRAM_ID
+  );
+
+  const instruction = new TransactionInstruction({
+    programId: MARKET_PROGRAM_ID,
+    data: Buffer.from(CLAIM_PAYOUT_DISCRIMINATOR),
+    keys: [
+      { pubkey: marketPda, isSigner: false, isWritable: true },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: positionPda, isSigner: false, isWritable: true },
+      { pubkey: treasuryPda, isSigner: false, isWritable: true },
+      { pubkey: traderPubkey, isSigner: true, isWritable: true },
+    ],
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = traderPubkey;
+
+  let txSignature = "";
+  if (provider.signAndSendTransaction) {
+    const res = await provider.signAndSendTransaction(transaction);
+    txSignature = res.signature || res.toString();
+  } else if (provider.sendTransaction) {
+    txSignature = await provider.sendTransaction(transaction, connection);
+  } else {
+    throw new Error("Connected wallet does not support signing transactions.");
+  }
+
+  await connection.confirmTransaction(txSignature, "confirmed");
+  return txSignature;
+}

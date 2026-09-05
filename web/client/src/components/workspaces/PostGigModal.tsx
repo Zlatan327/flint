@@ -391,9 +391,19 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                   }}
                   className="mono"
                 />
-                <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.4)" }}>
-                  Transfers directly from your wallet into the program vault. Released only upon your approval or arbitrated settlement.
-                </span>
+                <div style={{ padding: "8px 10px", background: "rgba(255, 107, 0, 0.05)", border: "1px solid rgba(255, 107, 0, 0.15)", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem" }} className="mono">
+                    <span style={{ color: "#aaa" }}>VAULT DEPOSIT:</span>
+                    <span style={{ color: "#fff", fontWeight: 600 }}>{budget ? `${Number(budget).toFixed(2)} SOL` : "0.00 SOL"}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem" }} className="mono">
+                    <span style={{ color: "#FF6B00" }}>PROTOCOL TAKE RATE:</span>
+                    <span style={{ color: "#FF6B00", fontWeight: 600 }}>1.50% (settlement fee)</span>
+                  </div>
+                  <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>
+                    Funds transfer directly into the program vault PDA. Released only upon deliverable approval.
+                  </div>
+                </div>
               </div>
 
               {errorText && (

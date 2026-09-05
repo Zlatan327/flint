@@ -2,6 +2,9 @@ use anchor_lang::prelude::*;
 
 declare_id!("95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3");
 
+/// Protocol Market Rake: 1.00% (100 basis points) on claimed winning pools
+pub const MARKET_RAKE_BPS: u64 = 100;
+
 #[program]
 pub mod flint_market {
     use super::*;
@@ -131,7 +134,7 @@ pub mod flint_market {
 
         // Pro-rata payout calculation
         let total_pot = total_winning_pool.saturating_add(total_losing_pool);
-        let payout = if total_winning_pool > 0 {
+        let gross_payout = if total_winning_pool > 0 {
             (shares as u128)
                 .saturating_mul(total_pot as u128)
                 .checked_div(total_winning_pool as u128)
@@ -147,21 +150,40 @@ pub mod flint_market {
             position.no_shares = 0;
         }
 
-        // Disburse earned lamports from market vault to trader
-        if payout > 0 {
+        // Calculate 1.0% (100 BPS) underwriter market rake
+        let market_rake = (gross_payout as u128)
+            .saturating_mul(MARKET_RAKE_BPS as u128)
+            .checked_div(10_000)
+            .unwrap_or(0) as u64;
+        let trader_net = gross_payout.saturating_sub(market_rake);
+
+        // Disburse earned lamports from market vault to trader and treasury
+        if gross_payout > 0 {
             **ctx.accounts.vault.try_borrow_mut_lamports()? = ctx
                 .accounts
                 .vault
                 .lamports()
-                .saturating_sub(payout);
+                .saturating_sub(gross_payout);
             **ctx.accounts.trader.try_borrow_mut_lamports()? = ctx
                 .accounts
                 .trader
                 .lamports()
-                .saturating_add(payout);
+                .saturating_add(trader_net);
+
+            if market_rake > 0 {
+                **ctx.accounts.treasury.try_borrow_mut_lamports()? = ctx
+                    .accounts
+                    .treasury
+                    .lamports()
+                    .saturating_add(market_rake);
+            }
         }
 
-        msg!("Flint Market: Trader claimed {} lamports from vault", payout);
+        msg!(
+            "Flint Market: Trader claimed {} lamports (net). Disbursed {} lamports (1.0%) to treasury",
+            trader_net,
+            market_rake
+        );
         Ok(())
     }
 }
@@ -236,6 +258,9 @@ pub struct ClaimPayout<'info> {
         constraint = position.owner == trader.key() @ MarketError::Unauthorized
     )]
     pub position: Account<'info, TraderPosition>,
+    #[account(mut)]
+    /// CHECK: Protocol Treasury account receiving the 1.0% market rake
+    pub treasury: AccountInfo<'info>,
     #[account(mut)]
     pub trader: Signer<'info>,
 }

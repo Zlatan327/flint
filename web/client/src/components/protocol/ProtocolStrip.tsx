@@ -2,11 +2,12 @@
 
 import { Blocks, Database, LockKeyhole, ShieldCheck } from "lucide-react";
 import { SectionLabel } from "@/components/layout/SectionLabel";
+import { PROTOCOL_TREASURY_PDA } from "@/lib/flint-escrow-client";
 
 const protocolStats = [
   { label: "ROLLUP SLOT", value: "18,402,771", detail: "+84 / SEC", icon: Blocks, tone: "emerald" },
   { label: "ACTIVE ESCROW", value: "3,450.00", detail: "SOL LOCKED", icon: LockKeyhole, tone: "amber" },
-  { label: "SETTLEMENT RATE", value: "98.7%", detail: "LAST 30 DAYS", icon: ShieldCheck, tone: "default" },
+  { label: "PROTOCOL RAKE", value: "1.50%", detail: "ESCROW SETTLEMENT", icon: ShieldCheck, tone: "amber" },
   { label: "INDEXER STATUS", value: "NOMINAL", detail: "184MS LATENCY", icon: Database, tone: "default" },
 ];
 
@@ -33,7 +34,7 @@ export function ProtocolStrip() {
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
             <span className="mono" style={{ fontSize: "0.75rem", color: "#10b981", letterSpacing: "0.06em", fontWeight: 700 }}>
-              SOLANA DEVNET LIVE CONTRACTS
+              SOLANA DEVNET LIVE CONTRACTS & TREASURY
             </span>
           </div>
           <span className="mono" style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: "4px" }}>
@@ -41,7 +42,7 @@ export function ProtocolStrip() {
           </span>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0.75rem", width: "100%", boxSizing: "border-box" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.75rem", width: "100%", boxSizing: "border-box" }}>
           <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em" }}>ESCROW & DELEGATION</span>
             <a href="https://explorer.solana.com/address/2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h?cluster=devnet" target="_blank" rel="noreferrer" className="mono" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -60,6 +61,13 @@ export function ProtocolStrip() {
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em" }}>SBT REPUTATION REGISTRY</span>
             <a href="https://explorer.solana.com/address/J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg?cluster=devnet" target="_blank" rel="noreferrer" className="mono" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               J6JQJBVY...8AAWg ↗
+            </a>
+          </div>
+
+          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em" }}>PROTOCOL TREASURY</span>
+            <a href={`https://explorer.solana.com/address/${PROTOCOL_TREASURY_PDA.toBase58()}?cluster=devnet`} target="_blank" rel="noreferrer" className="mono" style={{ color: "#FF6B00", textDecoration: "none", fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {PROTOCOL_TREASURY_PDA.toBase58().slice(0, 8)}... (1.5% Rake) ↗
             </a>
           </div>
         </div>

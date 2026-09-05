@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, ExternalLink, ShieldCheck, CheckCircle2, AlertTriangle, Loader2, Award, FileCode, Figma, BookOpen, Database, Zap } from "lucide-react";
 import { useFlintWallet } from "@/contexts/WalletContext";
-import { settleEscrowOnChain } from "@/lib/flint-escrow-client";
+import { settleEscrowOnChain, calculateEscrowFeeSplit, PROTOCOL_TREASURY_PDA } from "@/lib/flint-escrow-client";
 import { PublicKey } from "@solana/web3.js";
 
 interface DeliverableReviewModalProps {
@@ -30,6 +30,9 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
   const deliverableNotes = gig.deliverableNotes || "Completed specifications, full test suite passing, and verified against acceptance criteria.";
   const deliverableHash = gig.deliverableHash || "8f2a1b9c4d3e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a";
   const deliverableType = gig.deliverableType || "Code / Repository PR";
+
+  const budgetSol = parseFloat(String(gig.budget || "").replace(/[^0-9.]/g, "")) || 0;
+  const feeSplit = calculateEscrowFeeSplit(budgetSol);
 
   const getFormatIcon = () => {
     if (deliverableType.includes("Figma") || gig.category === "DESIGN") return <Figma size={18} color="#FF6B00" />;
@@ -154,7 +157,7 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
                 <strong style={{ fontSize: "0.95rem" }}>Escrow Settled & Vault Released!</strong>
               </div>
               <p style={{ margin: 0, fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>
-                {gig.budget} has been disbursed from the Solana Devnet Vault PDA directly to the worker. A Soulbound Token (SBT) reputation badge was minted via Metaplex Core.
+                {feeSplit.builderPayoutSol.toFixed(4)} SOL has been disbursed directly to the worker, and {feeSplit.protocolFeeSol.toFixed(4)} SOL (1.5% take rate) was transferred to the Flint Protocol Treasury PDA. A Soulbound Token (SBT) reputation badge was minted atomically on-chain.
               </p>
               <a
                 href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
@@ -270,9 +273,30 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
                 <div style={{ fontSize: "0.72rem", color: "#38bdf8", wordBreak: "break-all" }}>
                   {deliverableHash}
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", marginTop: "2px" }}>
-                  <span style={{ color: "#888" }}>ESCROW VAULT:</span>
-                  <span style={{ color: "#fff" }}>{gig.budget}</span>
+                <div
+                  style={{
+                    padding: "8px 10px",
+                    background: "rgba(255, 107, 0, 0.05)",
+                    border: "1px solid rgba(255, 107, 0, 0.2)",
+                    borderRadius: "6px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                    marginTop: "6px",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem" }}>
+                    <span style={{ color: "#aaa" }}>GROSS ESCROW VAULT:</span>
+                    <span style={{ color: "#fff", fontWeight: 600 }}>{feeSplit.grossSol.toFixed(2)} SOL</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem" }}>
+                    <span style={{ color: "#FF6B00" }}>PROTOCOL TAKE RATE (1.5%):</span>
+                    <span style={{ color: "#FF6B00", fontWeight: 600 }}>- {feeSplit.protocolFeeSol.toFixed(4)} SOL</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "4px" }}>
+                    <span style={{ color: "#10b981", fontWeight: 600 }}>NET RELEASED TO BUILDER:</span>
+                    <span style={{ color: "#10b981", fontWeight: 700 }}>{feeSplit.builderPayoutSol.toFixed(4)} SOL</span>
+                  </div>
                 </div>
               </div>
 

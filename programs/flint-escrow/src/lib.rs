@@ -6,6 +6,9 @@ use flint_reputation::BuilderPassport;
 
 declare_id!("2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h");
 
+/// Protocol Fee: 1.50% (150 basis points) take rate on settled escrows
+pub const PROTOCOL_FEE_BPS: u64 = 150;
+
 #[program]
 pub mod flint_escrow {
     use super::*;
@@ -186,7 +189,14 @@ pub mod flint_escrow {
         };
         let delivered_on_time = Clock::get()?.unix_timestamp <= gig.deadline;
 
-        // Transfer earned lamports from vault to freelancer
+        // Protocol fee calculation: 1.5% (150 basis points) take rate
+        let protocol_fee = (payout as u128)
+            .saturating_mul(PROTOCOL_FEE_BPS as u128)
+            .checked_div(10_000)
+            .unwrap_or(0) as u64;
+        let freelancer_payout = payout.saturating_sub(protocol_fee);
+
+        // Transfer earned lamports from vault to freelancer and treasury
         **ctx.accounts.vault.try_borrow_mut_lamports()? = ctx
             .accounts
             .vault
@@ -196,7 +206,15 @@ pub mod flint_escrow {
             .accounts
             .freelancer
             .lamports()
-            .saturating_add(payout);
+            .saturating_add(freelancer_payout);
+
+        if protocol_fee > 0 {
+            **ctx.accounts.treasury.try_borrow_mut_lamports()? = ctx
+                .accounts
+                .treasury
+                .lamports()
+                .saturating_add(protocol_fee);
+        }
 
         gig.remaining_amount = 0;
         gig.is_delegated_to_er = false;
@@ -214,10 +232,15 @@ pub mod flint_escrow {
                 system_program: ctx.accounts.system_program.to_account_info(),
             };
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-            let _ = flint_reputation::cpi::record_gig_completion_sbt(cpi_ctx, gig.gig_id, payout, delivered_on_time);
+            let _ = flint_reputation::cpi::record_gig_completion_sbt(cpi_ctx, gig.gig_id, freelancer_payout, delivered_on_time);
         }
 
-        msg!("Flint: Gig #{} settled to L1. Released {} lamports to freelancer", gig.gig_id, payout);
+        msg!(
+            "Flint: Gig #{} settled to L1. Released {} lamports to freelancer, {} lamports (1.5%) to treasury",
+            gig.gig_id,
+            freelancer_payout,
+            protocol_fee
+        );
         Ok(())
     }
 
@@ -342,6 +365,9 @@ pub struct SettleEscrow<'info> {
     )]
     /// CHECK: Freelancer receiving payout
     pub freelancer: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK: Protocol Treasury account receiving the 1.5% take rate
+    pub treasury: AccountInfo<'info>,
     pub signer: Signer<'info>,
     
     // CPI Accounts for flint-reputation

@@ -149,6 +149,7 @@ export function PredictionMarket() {
         <div><span className="metric-label">ACTIVE MARKETS</span><strong className="mono">{marketList.length}</strong></div>
         <div><span className="metric-label">CAPITAL IN BOOKS</span><strong className="mono">{totalCapitalSol.toFixed(2)} SOL</strong></div>
         <div><span className="metric-label">MY OPEN POSITIONS</span><strong className="mono">{positionList.length}</strong></div>
+        <div><span className="metric-label">PROTOCOL RAKE</span><strong className="mono" style={{ color: "#FF6B00" }}>1.00% / TREASURY</strong></div>
         <div><span className="metric-label">ESCROW PROGRAM</span><strong className="mono market-good">DEVNET / LIVE</strong></div>
       </div>
 
@@ -277,6 +278,7 @@ export function PredictionMarket() {
           <div className="balance-ledger">
             <div><span>AVAILABLE</span><strong className="mono">{displayBalance}</strong></div>
             <div><span>TOTAL IN MARKETS</span><strong className="mono">{totalUserStakeSol.toFixed(3)} SOL</strong></div>
+            <div><span>PROTOCOL RAKE</span><strong className="mono" style={{ color: "#FF6B00" }}>1.00% ON CLAIMS</strong></div>
             <div><span>NETWORK</span><strong className="mono">SOLANA DEVNET</strong></div>
           </div>
         </aside>

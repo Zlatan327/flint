@@ -159,8 +159,33 @@ const SETTLE_ESCROW_DISCRIMINATOR = new Uint8Array([
   0x24, 0x5a, 0x18, 0xe4, 0xcd, 0xae, 0xc9, 0x4e,
 ]);
 
+export const PROTOCOL_FEE_BPS = 150; // 1.50% protocol take rate
+
+export const [PROTOCOL_TREASURY_PDA] = PublicKey.findProgramAddressSync(
+  [Buffer.from("treasury")],
+  ESCROW_PROGRAM_ID
+);
+
+export interface EscrowFeeSplit {
+  grossSol: number;
+  protocolFeeSol: number;
+  builderPayoutSol: number;
+  feePercentage: number;
+}
+
+export function calculateEscrowFeeSplit(grossSol: number): EscrowFeeSplit {
+  const fee = (grossSol * PROTOCOL_FEE_BPS) / 10000;
+  const net = grossSol - fee;
+  return {
+    grossSol,
+    protocolFeeSol: Number(fee.toFixed(4)),
+    builderPayoutSol: Number(net.toFixed(4)),
+    feePercentage: 1.5,
+  };
+}
+
 /**
- * Settles an escrow on-chain, releasing funds from Vault to Freelancer
+ * Settles an escrow on-chain, releasing funds from Vault to Freelancer and Protocol Treasury
  */
 export async function settleEscrowOnChain(
   gigEscrowPdaStr: string,
@@ -194,6 +219,8 @@ export async function settleEscrowOnChain(
       { pubkey: gigEscrowPda, isSigner: false, isWritable: true },
       { pubkey: vaultPda, isSigner: false, isWritable: true },
       { pubkey: freelancerPubkey, isSigner: false, isWritable: true },
+      { pubkey: PROTOCOL_TREASURY_PDA, isSigner: false, isWritable: true },
+      { pubkey: clientPubkey, isSigner: true, isWritable: true },
       { pubkey: passportPda, isSigner: false, isWritable: true },
       { pubkey: sbtPda, isSigner: false, isWritable: true },
       { pubkey: gigEscrowPda, isSigner: false, isWritable: true }, // placeholder core asset

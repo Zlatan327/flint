@@ -66,6 +66,14 @@ export function TelemetryRail() {
       width: connected && balance !== null && balance > 0 ? 90 : 10,
     },
     {
+      label: "PROTOCOL REVENUE",
+      source: "TREASURY PDA",
+      value: "1.5% ESCROW / 1.0% MKT",
+      detail: "autonomous protocol rake auto-routed to Flint Treasury on settlement",
+      status: "verified",
+      width: 100,
+    },
+    {
       label: "DISPUTE RECORD",
       source: "FLINT PROGRAM",
       value: "0 PENALTIES",
