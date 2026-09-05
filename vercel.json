@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm --prefix web run build",
-  "installCommand": "npm --prefix web install",
+  "installCommand": "npm --prefix web install --legacy-peer-deps",
   "outputDirectory": "web/dist/public",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
