@@ -6,11 +6,13 @@ import { Link } from "wouter";
 import { navItems } from "@/lib/flint-data";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { WalletModal } from "@/components/wallet/WalletModal";
+import { AccountDrawer } from "@/components/wallet/AccountDrawer";
 import { AgentConsoleModal } from "@/components/protocol/AgentConsoleModal";
 
 export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isAgentConsoleOpen, setIsAgentConsoleOpen] = useState(false);
+  const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState(false);
   const { connected, walletAddress, balance, setIsModalOpen, disconnectWallet } = useFlintWallet();
 
   return (
@@ -81,8 +83,9 @@ export function TopBar() {
 
         {connected && walletAddress ? (
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Link
-              href="/passport"
+            <button
+              type="button"
+              onClick={() => setIsAccountDrawerOpen(true)}
               className="mono"
               style={{
                 display: "flex",
@@ -93,10 +96,10 @@ export function TopBar() {
                 padding: "6px 12px",
                 borderRadius: "6px",
                 fontSize: "0.78rem",
-                textDecoration: "none",
+                color: "#fff",
                 cursor: "pointer",
               }}
-              title="View your on-chain Builder Passport"
+              title="Open Account & Balance Management"
             >
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
               <span style={{ color: "#fff", fontWeight: 600 }}>
@@ -107,7 +110,7 @@ export function TopBar() {
                   {balance.toFixed(3)} SOL
                 </span>
               )}
-            </Link>
+            </button>
             <button
               type="button"
               onClick={disconnectWallet}
@@ -135,6 +138,14 @@ export function TopBar() {
         )}
       </div>
       <WalletModal />
+      <AccountDrawer
+        isOpen={isAccountDrawerOpen}
+        onClose={() => setIsAccountDrawerOpen(false)}
+        onSwitchWallet={() => {
+          setIsAccountDrawerOpen(false);
+          setIsModalOpen(true);
+        }}
+      />
       <AgentConsoleModal
         isOpen={isAgentConsoleOpen}
         onClose={() => setIsAgentConsoleOpen(false)}

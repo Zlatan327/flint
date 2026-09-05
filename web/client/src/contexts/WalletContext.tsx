@@ -22,6 +22,8 @@ interface WalletContextType {
   openWalletConnect: () => Promise<void>;
   connectWallet: (wallet: WalletOption) => Promise<void>;
   disconnectWallet: () => void;
+  requestAirdrop: () => Promise<any>;
+  refreshBalance: () => Promise<void>;
   availableWallets: WalletOption[];
 }
 
@@ -247,12 +249,56 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const disconnectWallet = () => {
+    try {
+      const win = window as any;
+      if (win.phantom?.solana?.disconnect) {
+        win.phantom.solana.disconnect().catch(() => {});
+      }
+      if (win.solflare?.disconnect) {
+        win.solflare.disconnect().catch(() => {});
+      }
+    } catch (_) {}
+
     setConnected(false);
     setWalletAddress(null);
     setWalletName(null);
     setBalance(null);
     localStorage.removeItem("flint_wallet_name");
     localStorage.removeItem("flint_wallet_address");
+  };
+
+  const refreshBalance = useCallback(async () => {
+    if (walletAddress) {
+      await fetchBalance(walletAddress);
+    }
+  }, [walletAddress, fetchBalance]);
+
+  const requestAirdrop = async () => {
+    if (!walletAddress) throw new Error("Wallet not connected.");
+    try {
+      const response = await fetch(DEVNET_RPC, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "requestAirdrop",
+          params: [walletAddress, 1_000_000_000], // 1 SOL
+        }),
+      });
+      const data = await response.json();
+      if (data.result) {
+        setTimeout(() => {
+          fetchBalance(walletAddress);
+        }, 2000);
+        return data.result;
+      } else if (data.error) {
+        throw new Error(data.error.message || "Airdrop limit reached on Devnet RPC.");
+      }
+    } catch (err: any) {
+      console.error("Airdrop request failed:", err);
+      throw err;
+    }
   };
 
   // Reconnect previous session
@@ -280,6 +326,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         openWalletConnect,
         connectWallet,
         disconnectWallet,
+        requestAirdrop,
+        refreshBalance,
         availableWallets,
       }}
     >
