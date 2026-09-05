@@ -1,19 +1,89 @@
 import React, { useState } from "react";
-import { X, Plus, ShieldCheck } from "lucide-react";
+import { X, Plus, ShieldCheck, ExternalLink, Loader2, CheckCircle2 } from "lucide-react";
+import { PublicKey } from "@solana/web3.js";
+import { useFlintWallet } from "@/contexts/WalletContext";
+import { initializeAndDepositEscrow, EscrowTxResult } from "@/lib/flint-escrow-client";
 
 interface PostGigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (gigData: any) => void;
+  onSuccess: (result: EscrowTxResult, gigData: { title: string; budget: string; lane: string; model: string }) => void;
 }
 
-export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onSubmit }) => {
-  const [model, setModel] = useState("BOUNTY (First Valid)");
+export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const { walletAddress, connected, setIsModalOpen } = useFlintWallet();
+  const [model, setModel] = useState<"BOUNTY (First Valid)" | "CONTEST (Best Wins)">("BOUNTY (First Valid)");
   const [title, setTitle] = useState("");
-  const [budget, setBudget] = useState("");
+  const [budget, setBudget] = useState("0.01");
   const [lane, setLane] = useState("Human → Agent");
-  
+
+  const [loading, setLoading] = useState(false);
+  const [statusText, setStatusText] = useState("");
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [txResult, setTxResult] = useState<EscrowTxResult | null>(null);
+
   if (!isOpen) return null;
+
+  const handleInitializeEscrow = async () => {
+    if (!connected || !walletAddress) {
+      setIsModalOpen(true);
+      return;
+    }
+
+    if (!title.trim()) {
+      setErrorText("Please enter a gig title.");
+      return;
+    }
+
+    setErrorText(null);
+    setLoading(true);
+    setStatusText("Preparing Solana Devnet transaction...");
+
+    try {
+      // Find wallet provider (Phantom, Solflare, etc.)
+      const win = window as any;
+      const provider = win.phantom?.solana || win.solflare || win.backpack || win.solana;
+
+      if (!provider) {
+        throw new Error("No Solana browser wallet detected (e.g. Phantom). Please install or unlock your wallet.");
+      }
+
+      setStatusText("Awaiting wallet approval & signature...");
+
+      const isBounty = model.startsWith("BOUNTY");
+      const result = await initializeAndDepositEscrow(
+        {
+          title: title.trim(),
+          budgetSol: parseFloat(budget) || 0.01,
+          lane,
+          model: isBounty ? "BOUNTY" : "CONTEST",
+          clientPubkey: new PublicKey(walletAddress),
+        },
+        provider
+      );
+
+      setStatusText("Transaction confirmed on Devnet!");
+      setTxResult(result);
+      onSuccess(result, {
+        title: title.trim(),
+        budget: `${budget} SOL`,
+        lane,
+        model: isBounty ? "Bounty" : "Contest",
+      });
+    } catch (err: any) {
+      console.error("Escrow deployment error:", err);
+      setErrorText(err?.message || "Transaction failed or rejected by wallet.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetAndClose = () => {
+    setTxResult(null);
+    setErrorText(null);
+    setStatusText("");
+    onClose();
+  };
 
   return (
     <div
@@ -27,12 +97,12 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
         backgroundColor: "rgba(0, 0, 0, 0.85)",
         backdropFilter: "blur(10px)",
       }}
-      onClick={onClose}
+      onClick={handleResetAndClose}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: "500px",
+          maxWidth: "520px",
           margin: "1rem",
           backgroundColor: "#0a0c10",
           border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -56,17 +126,20 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span className="mono" style={{ fontSize: "0.68rem", color: "#FF6B00", letterSpacing: "0.08em", fontWeight: 700 }}>
-                  NEW ESCROW
+                  LIVE SOLANA ESCROW
+                </span>
+                <span className="mono" style={{ fontSize: "0.6rem", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.3)", padding: "1px 5px", borderRadius: "3px" }}>
+                  DEVNET
                 </span>
               </div>
               <h3 style={{ margin: "2px 0 0", fontSize: "1.05rem", fontWeight: 600, color: "#fff" }}>
-                Post a Gig
+                Post Gig to Escrow
               </h3>
             </div>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleResetAndClose}
             style={{
               background: "rgba(255, 255, 255, 0.05)",
               border: "1px solid rgba(255, 255, 255, 0.08)",
@@ -84,84 +157,82 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
         </div>
 
         <div style={{ padding: "1.5rem" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                Settlement Model
-              </label>
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
+          {txResult ? (
+            /* Success State */
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#10b981" }}>
+                <CheckCircle2 size={20} />
+                <strong style={{ fontSize: "0.95rem" }}>Gig Escrow Live on Solana!</strong>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>
+                Your gig #{txResult.gigId} has been created and escrow funds are locked in the Vault PDA on Devnet.
+              </p>
+              
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }} className="mono">
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem" }}>
+                  <span style={{ color: "#888" }}>GIG ID:</span>
+                  <span style={{ color: "#fff" }}>#{txResult.gigId}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem" }}>
+                  <span style={{ color: "#888" }}>ESCROW PDA:</span>
+                  <span style={{ color: "#FF6B00" }}>{txResult.gigEscrowPda.slice(0, 8)}...{txResult.gigEscrowPda.slice(-6)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem" }}>
+                  <span style={{ color: "#888" }}>VAULT PDA:</span>
+                  <span style={{ color: "#10b981" }}>{txResult.vaultPda.slice(0, 8)}...{txResult.vaultPda.slice(-6)}</span>
+                </div>
+              </div>
+
+              <a
+                href={txResult.explorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#fff",
-                  padding: "0.6rem",
-                  borderRadius: "6px",
-                  outline: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  padding: "0.75rem",
+                  borderRadius: "8px",
+                  background: "#FF6B00",
+                  color: "#000",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  textDecoration: "none",
                 }}
                 className="mono"
               >
-                <option value="BOUNTY (First Valid)">BOUNTY (First Valid Submission Wins)</option>
-                <option value="CONTEST (Best Wins)">CONTEST (Requester Picks Best Submission)</option>
-              </select>
-              <span style={{ fontSize: "0.7rem", color: "#FF6B00", marginTop: "4px" }}>
-                {model.includes("BOUNTY") 
-                  ? "Uses Commit-Reveal to prevent front-running." 
-                  : "Requires upfront stake. 20% distributed to runner-ups."}
-              </span>
-            </div>
+                VIEW ON SOLANA EXPLORER <ExternalLink size={14} />
+              </a>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                Gig Title
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Rust async benchmark suite"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+              <button
+                type="button"
+                onClick={handleResetAndClose}
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#fff",
                   padding: "0.6rem",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "#fff",
                   borderRadius: "6px",
-                  outline: "none",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
                 }}
-              />
+                className="mono"
+              >
+                CLOSE
+              </button>
             </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          ) : (
+            /* Form State */
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                  Budget (USDC)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 500"
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                  style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#fff",
-                    padding: "0.6rem",
-                    borderRadius: "6px",
-                    outline: "none",
-                  }}
-                  className="mono"
-                />
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                  Lane
+                  Settlement Model
                 </label>
                 <select
-                  value={lane}
-                  onChange={(e) => setLane(e.target.value)}
+                  value={model}
+                  disabled={loading}
+                  onChange={(e) => setModel(e.target.value as any)}
                   style={{
                     background: "rgba(255,255,255,0.03)",
                     border: "1px solid rgba(255,255,255,0.1)",
@@ -172,36 +243,126 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                   }}
                   className="mono"
                 >
-                  <option>Human → Agent</option>
-                  <option>Agent → Agent</option>
-                  <option>Human → Human</option>
+                  <option value="BOUNTY (First Valid)">BOUNTY (First Valid Submission Wins)</option>
+                  <option value="CONTEST (Best Wins)">CONTEST (Requester Picks Best Submission)</option>
                 </select>
+                <span style={{ fontSize: "0.7rem", color: "#FF6B00", marginTop: "2px" }}>
+                  {model.startsWith("BOUNTY")
+                    ? "Commit-reveal enabled. Freelancer claims dynamically upon valid submission."
+                    : "Upfront escrow locked. You assign the winning freelancer via on-chain instruction."}
+                </span>
               </div>
-            </div>
 
-            <button
-              onClick={() => onSubmit({ title, budget, lane, model })}
-              style={{
-                width: "100%",
-                padding: "0.8rem",
-                borderRadius: "8px",
-                background: "#FF6B00",
-                color: "#000",
-                border: "none",
-                fontWeight: 600,
-                fontSize: "0.9rem",
-                cursor: "pointer",
-                marginTop: "0.5rem",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-              }}
-              className="mono"
-            >
-              INITIALIZE ESCROW
-            </button>
-          </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
+                  Gig Title
+                </label>
+                <input
+                  type="text"
+                  disabled={loading}
+                  placeholder="e.g. Anchor Program Security Audit"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "#fff",
+                    padding: "0.6rem",
+                    borderRadius: "6px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
+                    Escrow Budget (SOL)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.001"
+                    disabled={loading}
+                    placeholder="0.01"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      color: "#fff",
+                      padding: "0.6rem",
+                      borderRadius: "6px",
+                      outline: "none",
+                    }}
+                    className="mono"
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
+                    Lane
+                  </label>
+                  <select
+                    value={lane}
+                    disabled={loading}
+                    onChange={(e) => setLane(e.target.value)}
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      color: "#fff",
+                      padding: "0.6rem",
+                      borderRadius: "6px",
+                      outline: "none",
+                    }}
+                    className="mono"
+                  >
+                    <option>Human → Agent</option>
+                    <option>Agent → Agent</option>
+                    <option>Human → Human</option>
+                  </select>
+                </div>
+              </div>
+
+              {errorText && (
+                <div style={{ padding: "8px 12px", background: "rgba(225, 29, 72, 0.15)", border: "1px solid rgba(225, 29, 72, 0.3)", borderRadius: "6px", color: "#f43f5e", fontSize: "0.75rem" }} className="mono">
+                  {errorText}
+                </div>
+              )}
+
+              {loading && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#FF6B00", fontSize: "0.8rem" }} className="mono">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>{statusText}</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleInitializeEscrow}
+                style={{
+                  width: "100%",
+                  padding: "0.8rem",
+                  borderRadius: "8px",
+                  background: loading ? "#555" : "#FF6B00",
+                  color: "#000",
+                  border: "none",
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  marginTop: "0.5rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                }}
+                className="mono"
+              >
+                {loading ? "INITIALIZING ESCROW ON-CHAIN..." : "LOCK FUNDS & POST TO DEVNET"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div
@@ -218,7 +379,7 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
         >
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <ShieldCheck size={14} color="#FF6B00" />
-            <span>Funds will be locked in smart contract</span>
+            <span>Program ID: 2PQbtiG...KQD6h</span>
           </div>
           <span className="mono" style={{ color: "#10b981" }}>SOLANA DEVNET</span>
         </div>

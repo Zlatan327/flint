@@ -1,22 +1,40 @@
 import { gigs } from "@/lib/flint-data";
-import { ArrowUpRight, Filter, Plus } from "lucide-react";
+import { ArrowUpRight, Filter, Plus, ExternalLink } from "lucide-react";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { SectionLabel } from "@/components/layout/SectionLabel";
 import { PostGigModal } from "./PostGigModal";
 import { useState } from "react";
+import { EscrowTxResult } from "@/lib/flint-escrow-client";
 
 export function GigExchange() {
   const { connected, setIsModalOpen } = useFlintWallet();
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [gigList, setGigList] = useState(gigs);
 
-  const handleInteract = (action: string) => {
+  const handleInteract = (action: string, gigPda?: string) => {
     if (!connected) return setIsModalOpen(true);
-    alert(`Sending transaction to Escrow Program... (Action: ${action})`);
+    if (gigPda) {
+      window.open(`https://explorer.solana.com/address/${gigPda}?cluster=devnet`, "_blank");
+    } else {
+      alert(`Connected to Escrow Program (2PQbtiG...KQD6h)\nAction: ${action}`);
+    }
   };
 
-  const handlePostGig = (gigData: any) => {
-    alert(`Initializing Escrow for ${gigData.title} with budget ${gigData.budget} USDC...\nModel: ${gigData.model}`);
-    setIsPostModalOpen(false);
+  const handleGigCreated = (result: EscrowTxResult, gigData: any) => {
+    const newGig = {
+      id: `GIG-${result.gigId}`,
+      title: gigData.title,
+      lane: gigData.lane,
+      budget: gigData.budget,
+      status: "Accepting" as const,
+      verification: gigData.model === "Bounty" ? "COMMIT-REVEAL" : "CONTEST",
+      deadline: "7D 00H",
+      submissions: 0,
+      pda: result.gigEscrowPda,
+      vault: result.vaultPda,
+      txSignature: result.txSignature,
+    };
+    setGigList((prev) => [newGig, ...prev]);
   };
 
   return (
@@ -45,10 +63,12 @@ export function GigExchange() {
             <span className="metric-label">LIVE GIGS</span>
             <span className="mono">BUDGET / STATUS</span>
           </div>
-          {gigs.map((gig) => (
+          {gigList.map((gig: any) => (
             <article className="market-book-row" key={gig.id}>
               <div className="market-book-main">
-                <span className="mono market-book-id">{gig.id}</span>
+                <span className="mono market-book-id">
+                  {gig.id} {gig.pda && <span style={{ color: "#10b981", fontSize: "0.65rem" }}>● ON-CHAIN</span>}
+                </span>
                 <h3>{gig.title}</h3>
                 <span className="mono market-book-meta">
                   {gig.lane} · {gig.verification} · CLOSES {gig.deadline}
@@ -61,11 +81,11 @@ export function GigExchange() {
               </div>
               <div className="market-book-actions">
                 {gig.status === "Accepting" ? (
-                  <button className="amber-button" onClick={() => handleInteract("submit")}>
+                  <button className="amber-button" onClick={() => handleInteract("submit", gig.pda)}>
                     SUBMIT WORK
                   </button>
                 ) : (
-                  <button className="outline-button" onClick={() => handleInteract("view_escrow")}>
+                  <button className="outline-button" onClick={() => handleInteract("view_escrow", gig.pda)}>
                     VIEW ESCROW
                   </button>
                 )}
@@ -122,7 +142,7 @@ export function GigExchange() {
       <PostGigModal 
         isOpen={isPostModalOpen} 
         onClose={() => setIsPostModalOpen(false)} 
-        onSubmit={handlePostGig} 
+        onSuccess={handleGigCreated} 
       />
     </section>
   );
