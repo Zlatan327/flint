@@ -12,14 +12,27 @@ import {
   ExternalLink, 
   ChevronDown, 
   ChevronUp, 
-  Scale
+  Scale,
+  Copy,
+  Check
 } from "lucide-react";
+import { toast } from "sonner";
 import { Link } from "wouter";
 import { PROTOCOL_TREASURY_PDA } from "@/lib/flint-escrow-client";
 
 export default function WhitepaperPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"client" | "builder" | "underwriter">("client");
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+
+  const copyAddress = (address: string, label: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      toast.success(`Copied ${label} to clipboard`);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    }
+  };
 
   const toggleFaq = (idx: number) => {
     setActiveFaq(activeFaq === idx ? null : idx);
@@ -359,18 +372,38 @@ export default function WhitepaperPage() {
             </div>
           </div>
 
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "1rem 1.25rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }} className="mono">
-            <div>
+          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "1rem 1.25rem", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem", minWidth: 0 }} className="mono">
+            <div style={{ minWidth: 0, flex: "1 1 300px" }}>
               <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", textTransform: "uppercase" }}>On-Chain Protocol Treasury Address:</span>
-              <div style={{ color: "#FF6B00", fontSize: "0.85rem", fontWeight: 600, marginTop: "2px" }}>
-                {PROTOCOL_TREASURY_PDA.toBase58()}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px", background: "rgba(0, 0, 0, 0.4)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px", padding: "6px 10px", minWidth: 0 }}>
+                <span style={{ color: "#FF6B00", fontSize: "0.8rem", fontWeight: 600, wordBreak: "break-all", overflowWrap: "anywhere", lineHeight: "1.4" }}>
+                  {PROTOCOL_TREASURY_PDA.toBase58()}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyAddress(PROTOCOL_TREASURY_PDA.toBase58(), "Treasury PDA")}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "4px",
+                    color: copiedAddress === PROTOCOL_TREASURY_PDA.toBase58() ? "#10b981" : "#aaa",
+                    cursor: "pointer",
+                    padding: "4px 6px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    flexShrink: 0,
+                  }}
+                  title="Copy Treasury PDA"
+                >
+                  {copiedAddress === PROTOCOL_TREASURY_PDA.toBase58() ? <Check size={13} /> : <Copy size={13} />}
+                </button>
               </div>
             </div>
             <a
               href={`https://explorer.solana.com/address/${PROTOCOL_TREASURY_PDA.toBase58()}?cluster=devnet`}
               target="_blank"
               rel="noreferrer"
-              style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+              style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "4px", flexShrink: 0 }}
             >
               VIEW TREASURY ON SOLANA EXPLORER <ExternalLink size={13} />
             </a>
@@ -433,29 +466,117 @@ export default function WhitepaperPage() {
           <h2 style={{ fontSize: "1.8rem", color: "#fff", margin: "0.5rem 0 1.5rem" }}>Live Solana Devnet Contracts</h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
-            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "1rem 1.25rem" }}>
-              <span className="mono" style={{ color: "#888", fontSize: "0.7rem" }}>ESCROW & DELEGATION</span>
-              <div className="mono" style={{ color: "#38bdf8", fontSize: "0.82rem", margin: "4px 0" }}>2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h</div>
-              <a href="https://explorer.solana.com/address/2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h?cluster=devnet" target="_blank" rel="noreferrer" style={{ color: "#FF6B00", fontSize: "0.72rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }} className="mono">
-                VIEW ON EXPLORER <ExternalLink size={11} />
-              </a>
-            </div>
+            {[
+              {
+                name: "ESCROW & DELEGATION",
+                address: "2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h",
+                role: "L1 Vault Custody & Milestones",
+              },
+              {
+                name: "MILESTONE PREDICTION MARKET",
+                address: "95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3",
+                role: "PER Orderbook & Liquidity Rake",
+              },
+              {
+                name: "SOULBOUND REPUTATION REGISTRY",
+                address: "J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg",
+                role: "Metaplex Core Non-Transferable SBTs",
+              },
+            ].map((c) => (
+              <div
+                key={c.address}
+                style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: "8px",
+                  padding: "1.25rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  gap: "0.85rem",
+                }}
+              >
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <span className="mono" style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.68rem", letterSpacing: "0.04em" }}>
+                      {c.name}
+                    </span>
+                    <span className="mono" style={{ fontSize: "0.62rem", color: "#10b981", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.2)", padding: "1px 5px", borderRadius: "3px" }}>
+                      DEVNET
+                    </span>
+                  </div>
+                  <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.75rem", marginBottom: "8px" }}>
+                    {c.role}
+                  </div>
+                  <div
+                    style={{
+                      background: "rgba(0, 0, 0, 0.45)",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      borderRadius: "6px",
+                      padding: "8px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      minWidth: 0,
+                    }}
+                  >
+                    <span
+                      className="mono"
+                      style={{
+                        color: "#38bdf8",
+                        fontSize: "0.75rem",
+                        wordBreak: "break-all",
+                        overflowWrap: "anywhere",
+                        lineHeight: "1.4",
+                        userSelect: "all",
+                      }}
+                    >
+                      {c.address}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyAddress(c.address, c.name)}
+                      style={{
+                        background: "rgba(255, 255, 255, 0.05)",
+                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        borderRadius: "4px",
+                        color: copiedAddress === c.address ? "#10b981" : "#aaa",
+                        cursor: "pointer",
+                        padding: "4px 6px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        flexShrink: 0,
+                        transition: "all 0.15s ease",
+                      }}
+                      title="Copy contract address"
+                    >
+                      {copiedAddress === c.address ? <Check size={13} /> : <Copy size={13} />}
+                    </button>
+                  </div>
+                </div>
 
-            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "1rem 1.25rem" }}>
-              <span className="mono" style={{ color: "#888", fontSize: "0.7rem" }}>MILESTONE PREDICTION MARKET</span>
-              <div className="mono" style={{ color: "#38bdf8", fontSize: "0.82rem", margin: "4px 0" }}>95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3</div>
-              <a href="https://explorer.solana.com/address/95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3?cluster=devnet" target="_blank" rel="noreferrer" style={{ color: "#FF6B00", fontSize: "0.72rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }} className="mono">
-                VIEW ON EXPLORER <ExternalLink size={11} />
-              </a>
-            </div>
-
-            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "1rem 1.25rem" }}>
-              <span className="mono" style={{ color: "#888", fontSize: "0.7rem" }}>SOULBOUND REPUTATION REGISTRY</span>
-              <div className="mono" style={{ color: "#38bdf8", fontSize: "0.82rem", margin: "4px 0" }}>J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg</div>
-              <a href="https://explorer.solana.com/address/J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg?cluster=devnet" target="_blank" rel="noreferrer" style={{ color: "#FF6B00", fontSize: "0.72rem", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }} className="mono">
-                VIEW ON EXPLORER <ExternalLink size={11} />
-              </a>
-            </div>
+                <a
+                  href={`https://explorer.solana.com/address/${c.address}?cluster=devnet`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    color: "#FF6B00",
+                    fontSize: "0.72rem",
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    fontWeight: 600,
+                  }}
+                  className="mono"
+                >
+                  VIEW ON EXPLORER <ExternalLink size={11} />
+                </a>
+              </div>
+            ))}
           </div>
         </section>
 
