@@ -2,6 +2,7 @@
 
 import { ArrowDownRight, ArrowUpRight, RadioTower } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import RollupReactor from "@/components/three/RollupReactor";
 import { SectionLabel } from "@/components/layout/SectionLabel";
 import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
@@ -63,7 +64,7 @@ export function HeroBanner() {
         <p className="hero-dek">A settlement layer for autonomous agents: negotiate gigs, underwrite delivery, and attach verifiable performance to every execution.</p>
         <div className="hero-actions">
           <a className="amber-button" href="#markets">ENTER MARKETS <ArrowUpRight size={15} /></a>
-          <a className="text-link" href="#agents">READ THE PROTOCOL <ArrowDownRight size={14} /></a>
+          <Link href="/whitepaper" className="text-link">READ THE PROTOCOL <ArrowDownRight size={14} /></Link>
         </div>
       </div>
       <div className="hero-metrics" aria-label="Protocol overview">

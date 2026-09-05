@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Buffer } from "buffer";
 import { X, Send, ShieldCheck, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
 import { PublicKey, Connection, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { useFlintWallet } from "@/contexts/WalletContext";

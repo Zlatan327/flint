@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import {
   Connection,
   PublicKey,
@@ -6,6 +7,8 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { DEVNET_RPC } from "./flint-escrow-client";
+
+const textEncoder = new TextEncoder();
 
 export const MARKET_PROGRAM_ID = new PublicKey(
   "95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3"
@@ -286,7 +289,7 @@ export async function createMarketOnChain(
 
   const marketIdBytes = packU64LE(params.marketId);
   const [marketPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("milestone_market"), Buffer.from(marketIdBytes)],
+    [textEncoder.encode("milestone_market"), marketIdBytes],
     MARKET_PROGRAM_ID
   );
 
@@ -344,19 +347,19 @@ export async function placeMarketOrderOnChain(
   // Derive Market PDA: [b"milestone_market", market_id_le]
   const marketIdBytes = packU64LE(params.marketId);
   const [marketPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("milestone_market"), Buffer.from(marketIdBytes)],
+    [textEncoder.encode("milestone_market"), marketIdBytes],
     MARKET_PROGRAM_ID
   );
 
   // Derive Vault PDA: [b"vault", market_key]
   const [vaultPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("vault"), marketPda.toBuffer()],
+    [textEncoder.encode("vault"), marketPda.toBytes()],
     MARKET_PROGRAM_ID
   );
 
   // Derive Position PDA: [b"position", market_key, trader_key]
   const [positionPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("position"), marketPda.toBuffer(), params.traderPubkey.toBuffer()],
+    [textEncoder.encode("position"), marketPda.toBytes(), params.traderPubkey.toBytes()],
     MARKET_PROGRAM_ID
   );
 
@@ -444,19 +447,19 @@ export async function claimMarketPayoutOnChain(
   const marketPda = new PublicKey(marketPdaStr);
 
   const [vaultPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("vault"), marketPda.toBuffer()],
+    [textEncoder.encode("vault"), marketPda.toBytes()],
     MARKET_PROGRAM_ID
   );
 
   const [positionPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("position"), marketPda.toBuffer(), traderPubkey.toBuffer()],
+    [textEncoder.encode("position"), marketPda.toBytes(), traderPubkey.toBytes()],
     MARKET_PROGRAM_ID
   );
 
   // Derive protocol treasury PDA from escrow program
   const ESCROW_PROGRAM_ID = new PublicKey("2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h");
   const [treasuryPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("treasury")],
+    [textEncoder.encode("treasury")],
     ESCROW_PROGRAM_ID
   );
 

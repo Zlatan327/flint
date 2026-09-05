@@ -131,5 +131,5 @@ export const navItems = [
   { label: "Prediction Market", href: "/markets" },
   { label: "Builder Passport", href: "/passport" },
   { label: "Verification", href: "/#telemetry" },
-  { label: "Protocol", href: "/#protocol" },
+  { label: "Protocol", href: "/protocol" },
 ];

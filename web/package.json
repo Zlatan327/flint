@@ -12,6 +12,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "buffer": "^6.0.3",
     "@hookform/resolvers": "^5.2.2",
     "@project-serum/anchor": "^0.26.0",
     "@radix-ui/react-accordion": "^1.2.12",

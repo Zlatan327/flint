@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import {
   Connection,
   PublicKey,
@@ -5,6 +6,8 @@ import {
   TransactionInstruction,
   SystemProgram,
 } from "@solana/web3.js";
+
+const textEncoder = new TextEncoder();
 
 export const DEVNET_RPC = "https://api.devnet.solana.com";
 export const ESCROW_PROGRAM_ID = new PublicKey(
@@ -70,12 +73,12 @@ export async function initializeAndDepositEscrow(
 
   // Derive PDAs
   const [gigEscrowPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("gig_escrow"), Buffer.from(gigIdBytes)],
+    [textEncoder.encode("gig_escrow"), gigIdBytes],
     ESCROW_PROGRAM_ID
   );
 
   const [vaultPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("vault"), gigEscrowPda.toBuffer()],
+    [textEncoder.encode("vault"), gigEscrowPda.toBytes()],
     ESCROW_PROGRAM_ID
   );
 
@@ -162,7 +165,7 @@ const SETTLE_ESCROW_DISCRIMINATOR = new Uint8Array([
 export const PROTOCOL_FEE_BPS = 150; // 1.50% protocol take rate
 
 export const [PROTOCOL_TREASURY_PDA] = PublicKey.findProgramAddressSync(
-  [Buffer.from("treasury")],
+  [textEncoder.encode("treasury")],
   ESCROW_PROGRAM_ID
 );
 
@@ -198,17 +201,17 @@ export async function settleEscrowOnChain(
   const freelancerPubkey = new PublicKey(freelancerPubkeyStr);
 
   const [vaultPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("vault"), gigEscrowPda.toBuffer()],
+    [textEncoder.encode("vault"), gigEscrowPda.toBytes()],
     ESCROW_PROGRAM_ID
   );
 
   const REPUTATION_PROGRAM_ID = new PublicKey("J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg");
   const [passportPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("builder_passport"), freelancerPubkey.toBuffer()],
+    [textEncoder.encode("builder_passport"), freelancerPubkey.toBytes()],
     REPUTATION_PROGRAM_ID
   );
   const [sbtPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("sbt"), gigEscrowPda.toBuffer()],
+    [textEncoder.encode("sbt"), gigEscrowPda.toBytes()],
     REPUTATION_PROGRAM_ID
   );
 
