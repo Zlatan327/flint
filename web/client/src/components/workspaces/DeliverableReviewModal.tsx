@@ -58,12 +58,7 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
       const workerPubkey = gig.freelancer || walletAddress;
 
       if (!gigEscrowPda) {
-        // Fallback simulation if purely in-memory gig
-        await new Promise((res) => setTimeout(res, 1000));
-        const mockSig = "4VbK..." + Math.random().toString(36).slice(2, 7);
-        setTxSignature(mockSig);
-        onSettled(gig.id, mockSig);
-        return;
+        throw new Error("Gig does not have a valid on-chain escrow PDA on Devnet.");
       }
 
       setStatusText("Awaiting wallet settlement approval...");

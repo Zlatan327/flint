@@ -3,6 +3,7 @@ import { X, Send, ShieldCheck, CheckCircle2, Loader2, ExternalLink } from "lucid
 import { PublicKey, Connection, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { DEVNET_RPC, ESCROW_PROGRAM_ID } from "@/lib/flint-escrow-client";
+import { saveGigMetadata } from "@/lib/flint-chain-sync";
 import { DeliverableType } from "@/lib/flint-data";
 
 interface SubmitWorkModalProps {
@@ -75,40 +76,45 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
       data.set(SUBMIT_WORK_DISCRIMINATOR, 0);
       data.set(hashBytes, 8);
 
-      const gigEscrowPda = gig.pda ? new PublicKey(gig.pda) : null;
+      if (!gig?.pda) throw new Error("Gig does not have a valid on-chain escrow PDA on Devnet.");
+      const gigEscrowPda = new PublicKey(gig.pda);
 
-      if (gigEscrowPda) {
-        const connection = new Connection(DEVNET_RPC, "confirmed");
-        const instruction = new TransactionInstruction({
-          programId: ESCROW_PROGRAM_ID,
-          data: Buffer.from(data),
-          keys: [
-            { pubkey: gigEscrowPda, isSigner: false, isWritable: true },
-            { pubkey: new PublicKey(walletAddress), isSigner: true, isWritable: true },
-          ],
-        });
+      const connection = new Connection(DEVNET_RPC, "confirmed");
+      const instruction = new TransactionInstruction({
+        programId: ESCROW_PROGRAM_ID,
+        data: Buffer.from(data),
+        keys: [
+          { pubkey: gigEscrowPda, isSigner: false, isWritable: true },
+          { pubkey: new PublicKey(walletAddress), isSigner: true, isWritable: true },
+        ],
+      });
 
-        const transaction = new Transaction().add(instruction);
-        const { blockhash } = await connection.getLatestBlockhash("confirmed");
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = new PublicKey(walletAddress);
+      const transaction = new Transaction().add(instruction);
+      const { blockhash } = await connection.getLatestBlockhash("confirmed");
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = new PublicKey(walletAddress);
 
-        let sig = "";
-        if (provider.signAndSendTransaction) {
-          const res = await provider.signAndSendTransaction(transaction);
-          sig = res.signature || res.toString();
-        } else if (provider.sendTransaction) {
-          sig = await provider.sendTransaction(transaction, connection);
-        }
-        await connection.confirmTransaction(sig, "confirmed");
-        setTxSignature(sig);
+      let sig = "";
+      if (provider.signAndSendTransaction) {
+        const res = await provider.signAndSendTransaction(transaction);
+        sig = res.signature || res.toString();
+      } else if (provider.sendTransaction) {
+        sig = await provider.sendTransaction(transaction, connection);
       }
+      await connection.confirmTransaction(sig, "confirmed");
+      setTxSignature(sig);
+
+      saveGigMetadata(gig.id, gig.pda, {
+        deliverableType,
+        deliverableUrl,
+        deliverableNotes: notes,
+        deliverableHash: hashHex,
+      });
 
       onSuccess(gig.id, deliverableUrl, deliverableType, notes, hashHex);
     } catch (err: any) {
       console.error("Submission failed:", err);
-      // If the on-chain account doesn't match the caller or is a mock gig, fallback gracefully:
-      setErrorText(err?.message || "Transaction failed.");
+      setErrorText(err?.message || "Transaction failed or rejected by wallet.");
     } finally {
       setLoading(false);
     }

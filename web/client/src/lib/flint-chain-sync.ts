@@ -82,6 +82,46 @@ export function decodeGigEscrow(pubkey: PublicKey, accountData: Buffer | Uint8Ar
   }
 }
 
+const GIG_METADATA_STORAGE_KEY = "flint_gig_metadata_store";
+
+export interface OffChainGigMeta {
+  title?: string;
+  category?: Gig["category"];
+  lane?: Gig["lane"];
+  description?: string;
+  acceptanceCriteria?: string;
+  deliverableType?: Gig["deliverableType"];
+  deliverableUrl?: string;
+  deliverableNotes?: string;
+  deliverableHash?: string;
+}
+
+export function saveGigMetadata(gigId: number | string, pda: string, meta: OffChainGigMeta) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(GIG_METADATA_STORAGE_KEY);
+    const store: Record<string, OffChainGigMeta> = raw ? JSON.parse(raw) : {};
+    store[pda] = { ...store[pda], ...meta };
+    store[String(gigId)] = { ...store[String(gigId)], ...meta };
+    store[`GIG-${gigId}`] = { ...store[`GIG-${gigId}`], ...meta };
+    localStorage.setItem(GIG_METADATA_STORAGE_KEY, JSON.stringify(store));
+  } catch (err) {
+    console.warn("Failed to save gig metadata:", err);
+  }
+}
+
+export function getGigMetadata(key: string): OffChainGigMeta | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(GIG_METADATA_STORAGE_KEY);
+    if (!raw) return null;
+    const store: Record<string, OffChainGigMeta> = JSON.parse(raw);
+    return store[key] || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Fetches all live on-chain GigEscrows from Solana Devnet
  */
@@ -100,28 +140,37 @@ export async function fetchOnChainGigs(): Promise<Gig[]> {
       const remainingSeconds = Math.max(0, decoded.deadlineTimestamp - now);
       const days = Math.floor(remainingSeconds / 86400);
       const hours = Math.floor((remainingSeconds % 86400) / 3600);
-      const deadlineStr = `${days}D ${hours.toString().padStart(2, "0")}H`;
+      const deadlineStr = remainingSeconds > 0 ? `${days}D ${hours.toString().padStart(2, "0")}H` : "EXPIRED";
 
       let uiStatus: Gig["status"] = "Accepting";
       if (decoded.status === "Completed") uiStatus = "Funded";
       else if (decoded.status === "Reviewing" || decoded.status === "InProgress") uiStatus = "Reviewing";
 
+      const meta =
+        getGigMetadata(decoded.pubkey) ||
+        getGigMetadata(String(decoded.gigId)) ||
+        getGigMetadata(`GIG-${decoded.gigId}`);
+
       parsedGigs.push({
         id: `GIG-${decoded.gigId}`,
-        title: `${decoded.settlementModel.toUpperCase()}: Escrow #${decoded.gigId}`,
-        category: "ENGINEERING" as const,
-        lane: "Human → Agent",
+        title: meta?.title || `${decoded.settlementModel} Escrow #${decoded.gigId}`,
+        category: meta?.category || "ENGINEERING",
+        lane: meta?.lane || "Human → Agent",
         budget: `${decoded.totalAmountSol.toFixed(2)} SOL`,
         deadline: deadlineStr,
         submissions: decoded.isFreelancerAssigned ? 1 : 0,
         verification: decoded.settlementModel === "Bounty" ? "COMMIT-REVEAL" : "CONTEST",
         status: uiStatus,
+        deliverableType: meta?.deliverableType,
+        deliverableUrl: meta?.deliverableUrl,
+        deliverableNotes: meta?.deliverableNotes,
+        deliverableHash: decoded.deliverableHash || meta?.deliverableHash,
+        description: meta?.description || `Autonomous Solana Devnet escrow with ${decoded.totalAmountSol.toFixed(2)} SOL locked in vault.`,
+        acceptanceCriteria: meta?.acceptanceCriteria || "Cryptographic SHA-256 deliverable payload confirmed before settlement.",
         pda: decoded.pubkey,
         client: decoded.client,
         freelancer: decoded.freelancer,
-        isFreelancerAssigned: decoded.isFreelancerAssigned,
-        rawStatus: decoded.status,
-      } as any);
+      });
     }
 
     return parsedGigs;

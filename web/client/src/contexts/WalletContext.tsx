@@ -168,21 +168,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isInstalled: false,
         detect: () => null,
       },
-      {
-        id: "devnet_demo",
-        name: "Flint Devnet Signer",
-        icon: "flint",
-        url: "",
-        description: "Live Codespace deployer wallet (0.05 SOL)",
-        isInstalled: true,
-        detect: () => ({
-          isDemo: true,
-          publicKey: { toString: () => "HQexps4XRk9ZxVxyD4RaZEoK51MqDPqxY1aBuAk8qRZw" },
-        }),
-      },
     ];
-
-
   }, []);
 
   const [availableWallets, setAvailableWallets] = useState<WalletOption[]>([]);
@@ -223,14 +209,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      let pubkeyStr = "";
-
-      if (provider.isDemo) {
-        pubkeyStr = provider.publicKey.toString();
-      } else {
-        const resp = await provider.connect();
-        pubkeyStr = (resp?.publicKey || provider.publicKey)?.toString();
-      }
+      const resp = await provider.connect();
+      const pubkeyStr = (resp?.publicKey || provider.publicKey)?.toString();
 
       if (pubkeyStr) {
         setWalletAddress(pubkeyStr);

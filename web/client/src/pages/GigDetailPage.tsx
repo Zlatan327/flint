@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, Award, CheckCircle2, ChevronUp, Clock, ExternalLink, FileCode, Figma, BookOpen, Database, Zap, Shield, ShieldCheck, AlertTriangle, Send, Wallet } from "lucide-react";
+import { ArrowLeft, Award, CheckCircle2, ChevronUp, Clock, ExternalLink, FileCode, Figma, BookOpen, Database, Zap, Shield, ShieldCheck, AlertTriangle, Send, Wallet, Loader2 } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { SectionLabel } from "@/components/layout/SectionLabel";
 import { useFlintWallet } from "@/contexts/WalletContext";
-import { gigs, Gig } from "@/lib/flint-data";
+import { Gig } from "@/lib/flint-data";
+import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
 import { SubmitWorkModal } from "@/components/workspaces/SubmitWorkModal";
 import { DeliverableReviewModal } from "@/components/workspaces/DeliverableReviewModal";
 import { placeMarketOrderOnChain } from "@/lib/flint-market-client";
@@ -12,12 +13,11 @@ import { PublicKey } from "@solana/web3.js";
 
 export default function GigDetailPage() {
   const [, params] = useRoute("/gig/:id");
-  const gigId = params?.id || "GIG-204";
+  const gigId = params?.id || "";
   const { connected, walletAddress, setIsModalOpen } = useFlintWallet();
 
-  const [currentGig, setCurrentGig] = useState<Gig>(() => {
-    return gigs.find((g) => g.id === gigId) || gigs[0];
-  });
+  const [currentGig, setCurrentGig] = useState<Gig | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -29,8 +29,26 @@ export default function GigDetailPage() {
   const [tradeTx, setTradeTx] = useState<string | null>(null);
 
   useEffect(() => {
-    const found = gigs.find((g) => g.id === gigId);
-    if (found) setCurrentGig(found);
+    let isMounted = true;
+    async function loadGig() {
+      setLoading(true);
+      try {
+        const onChainGigs = await fetchOnChainGigs();
+        if (!isMounted) return;
+        const found = onChainGigs.find(
+          (g) => g.id === gigId || g.pda === gigId || `GIG-${(g as any).gigId}` === gigId
+        );
+        setCurrentGig(found || null);
+      } catch (err) {
+        console.warn("Failed to load gig:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadGig();
+    return () => {
+      isMounted = false;
+    };
   }, [gigId]);
 
   const getFormatIcon = (category: string) => {
@@ -49,7 +67,7 @@ export default function GigDetailPage() {
   };
 
   const handleWorkSubmitted = (id: string, url: string, deliverableType?: any, notes?: string, hashHex?: string) => {
-    setCurrentGig((prev) => ({
+    setCurrentGig((prev) => prev ? ({
       ...prev,
       status: "Reviewing",
       submissions: (prev.submissions || 0) + 1,
@@ -57,15 +75,15 @@ export default function GigDetailPage() {
       deliverableType: deliverableType || prev.deliverableType,
       deliverableNotes: notes,
       deliverableHash: hashHex,
-    }));
+    }) : null);
     setIsSubmitModalOpen(false);
   };
 
-  const handleSettled = (id: string, _txSig: string) => {
-    setCurrentGig((prev) => ({
+  const handleSettled = () => {
+    setCurrentGig((prev) => prev ? ({
       ...prev,
       status: "Funded",
-    }));
+    }) : null);
     setIsReviewModalOpen(false);
   };
 
@@ -81,9 +99,10 @@ export default function GigDetailPage() {
       const provider = win.phantom?.solana || win.solflare || win.solana;
       if (!provider) throw new Error("No Solana wallet detected.");
 
+      const rawId = parseInt(gigId.replace(/[^0-9]/g, ""), 10) || 1;
       const result = await placeMarketOrderOnChain(
         {
-          marketId: 4,
+          marketId: rawId,
           isYes: betSide === "YES",
           amountSol: parseFloat(stakeSol) || 0.1,
           traderPubkey: new PublicKey(walletAddress),
@@ -98,6 +117,39 @@ export default function GigDetailPage() {
       setTrading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flint-app">
+        <TopBar />
+        <main className="subpage-main" style={{ textAlign: "center", padding: "6rem 2rem" }}>
+          <Loader2 size={36} className="animate-spin inline text-amber-500 mb-4" />
+          <h2 style={{ color: "#fff", fontSize: "1.2rem" }}>Loading On-Chain Escrow...</h2>
+          <p className="mono" style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.82rem" }}>
+            Querying Solana Devnet RPC for {gigId}
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!currentGig) {
+    return (
+      <div className="flint-app">
+        <TopBar />
+        <main className="subpage-main" style={{ textAlign: "center", padding: "6rem 2rem" }}>
+          <AlertTriangle size={40} color="#f59e0b" style={{ margin: "0 auto 1rem" }} />
+          <h2 style={{ color: "#fff", fontSize: "1.3rem", margin: "0 0 0.5rem" }}>Gig Not Found on Solana Devnet</h2>
+          <p style={{ color: "rgba(255,255,255,0.6)", maxWidth: "480px", margin: "0 auto 1.5rem", fontSize: "0.88rem" }}>
+            The escrow account for &ldquo;{gigId}&rdquo; was not found among active program accounts on Devnet. It may have already been closed or settled.
+          </p>
+          <Link href="/exchange" className="amber-button mono" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            <ArrowLeft size={14} /> RETURN TO GIG EXCHANGE
+          </Link>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flint-app">

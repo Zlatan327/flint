@@ -7,7 +7,7 @@ import { SubmitWorkModal } from "./SubmitWorkModal";
 import { DeliverableReviewModal } from "./DeliverableReviewModal";
 import { useState, useEffect } from "react";
 import { EscrowTxResult, settleEscrowOnChain } from "@/lib/flint-escrow-client";
-import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
+import { fetchOnChainGigs, saveGigMetadata } from "@/lib/flint-chain-sync";
 import { PublicKey } from "@solana/web3.js";
 import { Link } from "wouter";
 
@@ -16,8 +16,8 @@ export function GigExchange() {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [selectedGigForSubmission, setSelectedGigForSubmission] = useState<any | null>(null);
   const [selectedGigForReview, setSelectedGigForReview] = useState<any | null>(null);
-  const [gigList, setGigList] = useState(gigs);
-  const [loadingOnChain, setLoadingOnChain] = useState(false);
+  const [gigList, setGigList] = useState<any[]>([]);
+  const [loadingOnChain, setLoadingOnChain] = useState(true);
   const [settlingGigId, setSettlingGigId] = useState<string | null>(null);
 
   // Filter state
@@ -33,13 +33,8 @@ export function GigExchange() {
       setLoadingOnChain(true);
       try {
         const onChainGigs = await fetchOnChainGigs();
-        if (isMounted && onChainGigs.length > 0) {
-          // Merge on-chain gigs with the initial showcase gigs (avoiding duplicate IDs)
-          setGigList((prev) => {
-            const existingIds = new Set(onChainGigs.map((g) => g.id));
-            const filteredMock = prev.filter((g) => !existingIds.has(g.id) && !g.id.startsWith("GIG-"));
-            return [...onChainGigs, ...filteredMock];
-          });
+        if (isMounted) {
+          setGigList(onChainGigs);
         }
       } catch (err) {
         console.warn("Failed to load on-chain gigs:", err);
@@ -67,7 +62,7 @@ export function GigExchange() {
 
   const handleSettle = async (gig: any) => {
     if (!connected || !walletAddress) return setIsModalOpen(true);
-    if (!gig.pda) return alert("This mock gig does not have an on-chain PDA.");
+    if (!gig.pda) return alert("This gig does not have a valid on-chain PDA.");
 
     try {
       setSettlingGigId(gig.id);
@@ -123,6 +118,14 @@ export function GigExchange() {
   };
 
   const handleGigCreated = (result: EscrowTxResult, gigData: any) => {
+    saveGigMetadata(result.gigId, result.gigEscrowPda, {
+      title: gigData.title,
+      category: gigData.category,
+      lane: gigData.lane,
+      description: gigData.description,
+      acceptanceCriteria: gigData.acceptanceCriteria,
+    });
+
     const newGig = {
       id: `GIG-${result.gigId}`,
       title: gigData.title,
@@ -179,60 +182,98 @@ export function GigExchange() {
             </span>
             <span className="mono">BUDGET / STATUS</span>
           </div>
-          {filteredGigs.map((gig: any) => {
-            const isReviewing = gig.status === "Reviewing";
 
-            return (
-              <article className="market-book-row" key={gig.id}>
-                <div className="market-book-main">
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span className="mono market-book-id">
-                      {gig.id} {gig.pda && <span style={{ color: "#10b981", fontSize: "0.65rem" }}>● ON-CHAIN</span>}
-                    </span>
-                    {gig.category && (
-                      <span className="mono" style={{ fontSize: "0.62rem", padding: "1px 6px", borderRadius: "4px", background: "rgba(255, 107, 0, 0.12)", color: "#FF6B00", border: "1px solid rgba(255, 107, 0, 0.25)" }}>
-                        {gig.category}
+          {loadingOnChain ? (
+            <div style={{ padding: "3rem 1.5rem", textAlign: "center", color: "rgba(255,255,255,0.5)" }} className="mono">
+              <Loader2 size={24} className="animate-spin inline mr-2 text-amber-500" />
+              <span>Scanning Solana Devnet for active GigEscrows...</span>
+            </div>
+          ) : filteredGigs.length === 0 ? (
+            <div
+              style={{
+                padding: "3.5rem 2rem",
+                textAlign: "center",
+                border: "1px dashed rgba(255, 255, 255, 0.1)",
+                borderRadius: "8px",
+                margin: "1rem",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <FileCode size={36} color="rgba(255, 255, 255, 0.2)" />
+              <div style={{ maxWidth: "420px" }}>
+                <h4 style={{ color: "#fff", fontSize: "1.05rem", margin: "0 0 6px" }}>0 On-Chain Escrows Found</h4>
+                <p style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "0.82rem", lineHeight: "1.5", margin: 0 }}>
+                  No active gig escrows match the current filters on Solana Devnet. Deploy the first escrow contract to initialize an anonymous deliverable market.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="amber-button mono"
+                style={{ fontSize: "0.78rem", padding: "7px 14px", marginTop: "4px" }}
+                onClick={() => (connected ? setIsPostModalOpen(true) : setIsModalOpen(true))}
+              >
+                {connected ? "POST GIG TO ESCROW" : "CONNECT WALLET"} <Plus size={13} />
+              </button>
+            </div>
+          ) : (
+            filteredGigs.map((gig: any) => {
+              const isReviewing = gig.status === "Reviewing";
+
+              return (
+                <article className="market-book-row" key={gig.id}>
+                  <div className="market-book-main">
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span className="mono market-book-id">
+                        {gig.id} {gig.pda && <span style={{ color: "#10b981", fontSize: "0.65rem" }}>● ON-CHAIN</span>}
                       </span>
+                      {gig.category && (
+                        <span className="mono" style={{ fontSize: "0.62rem", padding: "1px 6px", borderRadius: "4px", background: "rgba(255, 107, 0, 0.12)", color: "#FF6B00", border: "1px solid rgba(255, 107, 0, 0.25)" }}>
+                          {gig.category}
+                        </span>
+                      )}
+                    </div>
+                    <Link href={`/gig/${gig.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                      <h3 style={{ cursor: "pointer", transition: "color 0.15s" }} onMouseEnter={(e) => (e.currentTarget.style.color = "#FF6B00")} onMouseLeave={(e) => (e.currentTarget.style.color = "#fff")}>
+                        {gig.title}
+                      </h3>
+                    </Link>
+                    <span className="mono market-book-meta">
+                      {gig.lane} · {gig.verification} · CLOSES {gig.deadline}
+                    </span>
+                  </div>
+                  <div className="market-book-prob">
+                    <span className="metric-label">BUDGET</span>
+                    <strong className="mono">{gig.budget}</strong>
+                    <span className="market-trend">{gig.submissions} SUBMISSIONS</span>
+                  </div>
+                  <div className="market-book-actions">
+                    {gig.status === "Accepting" && (
+                      <button className="amber-button" onClick={() => handleInteract("submit", gig)}>
+                        SUBMIT WORK
+                      </button>
+                    )}
+                    {isReviewing && (
+                      <button
+                        className="emerald-button mono"
+                        style={{ background: "#FF6B00", color: "#000", fontWeight: 700, padding: "6px 12px", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.75rem" }}
+                        onClick={() => setSelectedGigForReview(gig)}
+                      >
+                        INSPECT DELIVERABLE
+                      </button>
+                    )}
+                    {gig.status === "Funded" && (
+                      <button className="outline-button" onClick={() => handleInteract("view_escrow", gig)}>
+                        VIEW SETTLED <ExternalLink size={12} />
+                      </button>
                     )}
                   </div>
-                  <Link href={`/gig/${gig.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                    <h3 style={{ cursor: "pointer", transition: "color 0.15s" }} onMouseEnter={(e) => (e.currentTarget.style.color = "#FF6B00")} onMouseLeave={(e) => (e.currentTarget.style.color = "#fff")}>
-                      {gig.title}
-                    </h3>
-                  </Link>
-                  <span className="mono market-book-meta">
-                    {gig.lane} · {gig.verification} · CLOSES {gig.deadline}
-                  </span>
-                </div>
-                <div className="market-book-prob">
-                  <span className="metric-label">BUDGET</span>
-                  <strong className="mono">{gig.budget}</strong>
-                  <span className="market-trend">{gig.submissions} SUBMISSIONS</span>
-                </div>
-                <div className="market-book-actions">
-                  {gig.status === "Accepting" && (
-                    <button className="amber-button" onClick={() => handleInteract("submit", gig)}>
-                      SUBMIT WORK
-                    </button>
-                  )}
-                  {isReviewing && (
-                    <button
-                      className="emerald-button mono"
-                      style={{ background: "#FF6B00", color: "#000", fontWeight: 700, padding: "6px 12px", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.75rem" }}
-                      onClick={() => setSelectedGigForReview(gig)}
-                    >
-                      INSPECT DELIVERABLE
-                    </button>
-                  )}
-                  {gig.status === "Funded" && (
-                    <button className="outline-button" onClick={() => handleInteract("view_escrow", gig)}>
-                      VIEW SETTLED <ExternalLink size={12} />
-                    </button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
+                </article>
+              );
+            })
+          )}
         </div>
 
         <aside className="positions-panel">
