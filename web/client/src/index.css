@@ -1862,7 +1862,31 @@
 
 @media (max-width: 580px) {
   .topbar {
-    padding: 0 16px;
+    padding: 0 14px;
+  }
+
+  .brand-lockup {
+    min-width: 0;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  .topbar-actions {
+    gap: 8px;
+  }
+
+  .agent-api-label {
+    display: none;
+  }
+
+  .topbar-disconnect-btn {
+    display: none;
+  }
+
+  .topbar-balance {
+    display: none;
   }
 
   .wallet-button span {

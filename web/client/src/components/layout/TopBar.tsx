@@ -48,6 +48,33 @@ export function TopBar() {
             </Link>
           );
         })}
+        <div className="mobile-nav-footer" style={{ padding: "16px 22px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <button
+            type="button"
+            onClick={() => { setMenuOpen(false); setIsAgentConsoleOpen(true); }}
+            className="mono"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              background: "rgba(255, 107, 0, 0.12)",
+              border: "1px solid rgba(255, 107, 0, 0.3)",
+              color: "#FF6B00",
+              padding: "10px 14px",
+              borderRadius: "6px",
+              fontSize: "0.8rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              width: "100%",
+            }}
+          >
+            <Bot size={15} /> OPEN AGENT API CONSOLE
+          </button>
+          <div className="mono" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#10b981", fontSize: "0.75rem" }}>
+            <span className="status-dot status-dot-live" /> DEVNET L1 · MAGICBLOCK ROLLUP
+          </div>
+        </div>
       </nav>
 
       <div className="topbar-actions">
@@ -59,7 +86,7 @@ export function TopBar() {
         <button
           type="button"
           onClick={() => setIsAgentConsoleOpen(true)}
-          className="mono"
+          className="mono agent-api-btn"
           style={{
             display: "flex",
             alignItems: "center",
@@ -73,12 +100,10 @@ export function TopBar() {
             fontWeight: 700,
             cursor: "pointer",
           }}
+          title="Open Agent API & RPC Docs"
         >
-          <Bot size={13} /> AGENT API
-        </button>
-
-        <button className="icon-button mobile-menu" type="button" aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={() => setMenuOpen((open) => !open)}>
-          {menuOpen ? <X size={16} /> : <Menu size={16} />}
+          <Bot size={13} />
+          <span className="agent-api-label">AGENT API</span>
         </button>
 
         {connected && walletAddress ? (
@@ -106,13 +131,14 @@ export function TopBar() {
                 {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
               </span>
               {balance !== null && (
-                <span style={{ color: "#10b981", background: "rgba(16, 185, 129, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
+                <span className="topbar-balance" style={{ color: "#10b981", background: "rgba(16, 185, 129, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
                   {balance.toFixed(3)} SOL
                 </span>
               )}
             </button>
             <button
               type="button"
+              className="topbar-disconnect-btn"
               onClick={disconnectWallet}
               style={{
                 background: "rgba(255, 255, 255, 0.04)",
@@ -136,6 +162,10 @@ export function TopBar() {
             <ArrowUpRight size={14} />
           </button>
         )}
+
+        <button className="icon-button mobile-menu" type="button" aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={() => setMenuOpen((open) => !open)}>
+          {menuOpen ? <X size={16} /> : <Menu size={16} />}
+        </button>
       </div>
       <WalletModal />
       <AccountDrawer
