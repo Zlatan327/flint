@@ -170,10 +170,17 @@ pub mod flint_escrow {
     pub fn commit_and_settle_escrow(ctx: Context<SettleEscrow>) -> Result<()> {
         let gig = &mut ctx.accounts.gig_escrow;
         require!(gig.is_freelancer_assigned, EscrowError::NoFreelancerAssigned);
-        require!(
-            ctx.accounts.signer.key() == gig.client || ctx.accounts.signer.key() == gig.freelancer,
-            EscrowError::Unauthorized
-        );
+        
+        // Security Patch SEC-01: In Reviewing status, ONLY the client can approve and release funds.
+        // If ReadyForSettlement (milestones pre-approved in Ephemeral Rollup), either party can finalize L1 settlement.
+        if gig.status == EscrowStatus::Reviewing {
+            require!(ctx.accounts.signer.key() == gig.client, EscrowError::Unauthorized);
+        } else {
+            require!(
+                ctx.accounts.signer.key() == gig.client || ctx.accounts.signer.key() == gig.freelancer,
+                EscrowError::Unauthorized
+            );
+        }
         require!(
             gig.status == EscrowStatus::ReadyForSettlement 
                 || gig.status == EscrowStatus::Reviewing 
@@ -247,8 +254,62 @@ pub mod flint_escrow {
     /// Triggers dispute handling using MagicBlock VRF for arbiter selection
     pub fn raise_dispute_vrf(ctx: Context<RaiseDispute>, vrf_seed: [u8; 32]) -> Result<()> {
         let gig = &mut ctx.accounts.gig_escrow;
+        // Security Patch SEC-06: Restrict dispute raising to client or assigned freelancer
+        require!(
+            ctx.accounts.caller.key() == gig.client || ctx.accounts.caller.key() == gig.freelancer,
+            EscrowError::Unauthorized
+        );
+        require!(
+            gig.status == EscrowStatus::InProgress 
+                || gig.status == EscrowStatus::Reviewing 
+                || gig.status == EscrowStatus::ActiveInRollup,
+            EscrowError::InvalidStatus
+        );
+
         gig.status = EscrowStatus::Disputed;
-        msg!("Flint: Dispute opened. Initializing MagicBlock VRF oracle with seed {:?}", vrf_seed);
+        msg!("Flint: Dispute opened for Gig #{}. Initializing MagicBlock VRF oracle with seed {:?}", gig.gig_id, vrf_seed);
+        Ok(())
+    }
+
+    /// Allows the client to cancel an unassigned gig or claim a refund if freelancer defaults past deadline (SEC-04)
+    pub fn cancel_or_refund_escrow(ctx: Context<CancelEscrow>) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        let clock = Clock::get()?;
+
+        // Cancellation rules:
+        // 1. If unassigned and Funded/Initialized, client can cancel immediately.
+        // 2. If assigned and InProgress, client can only cancel/refund if deadline has passed without work submission.
+        let can_cancel = match gig.status {
+            EscrowStatus::Initialized | EscrowStatus::Funded => !gig.is_freelancer_assigned,
+            EscrowStatus::InProgress => clock.unix_timestamp > gig.deadline,
+            _ => false,
+        };
+        require!(can_cancel, EscrowError::CannotCancelGig);
+
+        let refund_amount = if gig.remaining_amount > 0 {
+            gig.remaining_amount
+        } else {
+            gig.total_amount
+        };
+
+        // Disburse funds back to client from vault
+        if refund_amount > 0 {
+            **ctx.accounts.vault.try_borrow_mut_lamports()? = ctx
+                .accounts
+                .vault
+                .lamports()
+                .saturating_sub(refund_amount);
+            **ctx.accounts.client.try_borrow_mut_lamports()? = ctx
+                .accounts
+                .client
+                .lamports()
+                .saturating_add(refund_amount);
+        }
+
+        gig.remaining_amount = 0;
+        gig.status = EscrowStatus::Cancelled;
+
+        msg!("Flint: Gig #{} cancelled. Refunded {} lamports to client", gig.gig_id, refund_amount);
         Ok(())
     }
 }
@@ -393,6 +454,27 @@ pub struct RaiseDispute<'info> {
     pub caller: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct CancelEscrow<'info> {
+    #[account(
+        mut,
+        has_one = client @ EscrowError::Unauthorized,
+        seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
+        bump = gig_escrow.bump
+    )]
+    pub gig_escrow: Account<'info, GigEscrow>,
+    #[account(
+        mut,
+        seeds = [b"vault", gig_escrow.key().as_ref()],
+        bump
+    )]
+    /// CHECK: Vault PDA returning refund
+    pub vault: AccountInfo<'info>,
+    #[account(mut)]
+    pub client: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 #[account]
 pub struct GigEscrow {
     pub client: Pubkey,
@@ -431,6 +513,7 @@ pub enum EscrowStatus {
     ReadyForSettlement,
     Completed,
     Disputed,
+    Cancelled,
 }
 
 #[error_code]
@@ -453,4 +536,6 @@ pub enum EscrowError {
     NoFreelancerAssigned,
     #[msg("This operation is not valid for the selected settlement model")]
     InvalidSettlementModel,
+    #[msg("Gig cannot be cancelled or refunded under current status/deadline")]
+    CannotCancelGig,
 }

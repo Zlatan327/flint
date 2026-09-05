@@ -1,17 +1,83 @@
 // Black Ledger style reminder: protocol stats are quiet infrastructure signals, not headline decoration.
 
 import { Blocks, Database, LockKeyhole, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
 import { SectionLabel } from "@/components/layout/SectionLabel";
-import { PROTOCOL_TREASURY_PDA } from "@/lib/flint-escrow-client";
-
-const protocolStats = [
-  { label: "ROLLUP SLOT", value: "18,402,771", detail: "+84 / SEC", icon: Blocks, tone: "emerald" },
-  { label: "ACTIVE ESCROW", value: "3,450.00", detail: "SOL LOCKED", icon: LockKeyhole, tone: "amber" },
-  { label: "PROTOCOL RAKE", value: "1.50%", detail: "ESCROW SETTLEMENT", icon: ShieldCheck, tone: "amber" },
-  { label: "INDEXER STATUS", value: "NOMINAL", detail: "184MS LATENCY", icon: Database, tone: "default" },
-];
+import { PROTOCOL_TREASURY_PDA, DEVNET_RPC } from "@/lib/flint-escrow-client";
+import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
 
 export function ProtocolStrip() {
+  const [slot, setSlot] = useState<number | null>(null);
+  const [activeEscrowSol, setActiveEscrowSol] = useState<number | null>(null);
+  const [latency, setLatency] = useState<number | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      try {
+        const start = performance.now();
+        const [slotRes, gigs] = await Promise.all([
+          fetch(DEVNET_RPC, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getSlot" }),
+          }).then((r) => r.json()).catch(() => null),
+          fetchOnChainGigs().catch(() => []),
+        ]);
+        const rtt = Math.round(performance.now() - start);
+
+        if (isMounted) {
+          setLatency(rtt);
+          if (slotRes?.result) setSlot(slotRes.result);
+          const total = gigs.reduce((acc, g) => {
+            const num = parseFloat((g.budget || "").replace(/[^0-9.]/g, "")) || 0;
+            return acc + num;
+          }, 0);
+          setActiveEscrowSol(total);
+        }
+      } catch (err) {
+        console.warn("Failed to load live protocol stats:", err);
+      }
+    }
+    load();
+    const interval = setInterval(load, 20000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const protocolStats = [
+    {
+      label: "L1 BLOCK SLOT",
+      value: slot !== null ? `#${slot.toLocaleString()}` : "SYNCING...",
+      detail: "+DEVNET CONSENSUS",
+      icon: Blocks,
+      tone: "emerald",
+    },
+    {
+      label: "ACTIVE ESCROW",
+      value: activeEscrowSol !== null ? `${activeEscrowSol.toFixed(2)}` : "...",
+      detail: "SOL LOCKED IN VAULTS",
+      icon: LockKeyhole,
+      tone: "amber",
+    },
+    {
+      label: "PROTOCOL RAKE",
+      value: "1.50%",
+      detail: "ESCROW SETTLEMENT",
+      icon: ShieldCheck,
+      tone: "amber",
+    },
+    {
+      label: "INDEXER STATUS",
+      value: "NOMINAL",
+      detail: latency !== null ? `${latency}MS LATENCY` : "POLLING...",
+      icon: Database,
+      tone: "default",
+    },
+  ];
+
   return (
     <section className="protocol-strip" id="protocol" aria-labelledby="protocol-title">
       <div className="protocol-intro">

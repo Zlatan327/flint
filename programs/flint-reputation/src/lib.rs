@@ -32,6 +32,12 @@ pub mod flint_reputation {
         let passport = &mut ctx.accounts.passport;
         let sbt = &mut ctx.accounts.sbt_record;
 
+        // Security Patch SEC-02: Validate that authority is the builder or authorized signer
+        require!(
+            ctx.accounts.authority.key() == passport.builder,
+            ReputationError::Unauthorized
+        );
+
         passport.total_gigs_completed = passport.total_gigs_completed.saturating_add(1);
         passport.total_earnings = passport.total_earnings.saturating_add(earned_amount);
 
@@ -146,4 +152,10 @@ pub struct SoulboundRecord {
 
 impl SoulboundRecord {
     pub const LEN: usize = 32 + 8 + 8 + 1 + 8 + 1 + 16;
+}
+
+#[error_code]
+pub enum ReputationError {
+    #[msg("Caller is unauthorized to mint reputation or update passport")]
+    Unauthorized,
 }

@@ -59,7 +59,10 @@ pub mod flint_market {
     ) -> Result<()> {
         let market = &mut ctx.accounts.market;
         let position = &mut ctx.accounts.position;
+        let clock = Clock::get()?;
 
+        // Security Patch SEC-03: Eliminate late betting / post-deadline oracle arbitrage
+        require!(clock.unix_timestamp < market.target_timestamp, MarketError::MarketExpired);
         require!(!market.is_resolved, MarketError::MarketAlreadyResolved);
         require!(amount > 0, MarketError::InvalidAmount);
 
@@ -130,25 +133,24 @@ pub mod flint_market {
             (position.no_shares, market.no_pool, market.yes_pool)
         };
 
-        require!(shares > 0, MarketError::NoWinningShares);
-
-        // Pro-rata payout calculation
+        // Pro-rata payout calculation with zero-winner refund protection (SEC-08)
         let total_pot = total_winning_pool.saturating_add(total_losing_pool);
         let gross_payout = if total_winning_pool > 0 {
+            require!(shares > 0, MarketError::NoWinningShares);
             (shares as u128)
                 .saturating_mul(total_pot as u128)
                 .checked_div(total_winning_pool as u128)
                 .unwrap_or(0) as u64
         } else {
-            0
+            // Refund principal if 0 traders bet on the winning outcome
+            let total_shares = position.yes_shares.saturating_add(position.no_shares);
+            require!(total_shares > 0, MarketError::NoWinningShares);
+            total_shares
         };
 
         // Reset shares to prevent re-entrancy
-        if winning_outcome {
-            position.yes_shares = 0;
-        } else {
-            position.no_shares = 0;
-        }
+        position.yes_shares = 0;
+        position.no_shares = 0;
 
         // Calculate 1.0% (100 BPS) underwriter market rake
         let market_rake = (gross_payout as u128)
@@ -316,4 +318,6 @@ pub enum MarketError {
     InvalidAmount,
     #[msg("Trader has zero winning shares")]
     NoWinningShares,
+    #[msg("Market betting window has expired")]
+    MarketExpired,
 }
