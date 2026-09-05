@@ -3,18 +3,21 @@ import { X, Plus, ShieldCheck, ExternalLink, Loader2, CheckCircle2 } from "lucid
 import { PublicKey } from "@solana/web3.js";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { initializeAndDepositEscrow, EscrowTxResult } from "@/lib/flint-escrow-client";
+import { GigCategory } from "@/lib/flint-data";
 
 interface PostGigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (result: EscrowTxResult, gigData: { title: string; budget: string; lane: string; model: string }) => void;
+  onSuccess: (result: EscrowTxResult, gigData: { title: string; budget: string; lane: string; model: string; category: GigCategory; description?: string }) => void;
 }
 
 export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const { walletAddress, connected, setIsModalOpen } = useFlintWallet();
   const [model, setModel] = useState<"BOUNTY (First Valid)" | "CONTEST (Best Wins)">("BOUNTY (First Valid)");
+  const [category, setCategory] = useState<GigCategory>("ENGINEERING");
   const [title, setTitle] = useState("");
-  const [budget, setBudget] = useState("0.01");
+  const [description, setDescription] = useState("");
+  const [budget, setBudget] = useState("0.05");
   const [lane, setLane] = useState("Human → Agent");
 
   const [loading, setLoading] = useState(false);
@@ -69,6 +72,8 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
         budget: `${budget} SOL`,
         lane,
         model: isBounty ? "Bounty" : "Contest",
+        category,
+        description: description.trim(),
       });
     } catch (err: any) {
       console.error("Escrow deployment error:", err);
@@ -253,40 +258,15 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                 </span>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                  Gig Title
-                </label>
-                <input
-                  type="text"
-                  disabled={loading}
-                  placeholder="e.g. Anchor Program Security Audit"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#fff",
-                    padding: "0.6rem",
-                    borderRadius: "6px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                    Escrow Budget (SOL)
+                    Labor Domain
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.001"
+                  <select
+                    value={category}
                     disabled={loading}
-                    placeholder="0.01"
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
+                    onChange={(e) => setCategory(e.target.value as any)}
                     style={{
                       background: "rgba(255,255,255,0.03)",
                       border: "1px solid rgba(255,255,255,0.1)",
@@ -296,7 +276,13 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                       outline: "none",
                     }}
                     className="mono"
-                  />
+                  >
+                    <option value="ENGINEERING">💻 ENGINEERING</option>
+                    <option value="DESIGN">🎨 DESIGN & CREATIVE</option>
+                    <option value="RESEARCH">🔬 RESEARCH & STRATEGY</option>
+                    <option value="AI & DATA">🤖 AI & DATA EVALS</option>
+                    <option value="OPERATIONS">⚡ OPERATIONS & OPS</option>
+                  </select>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -322,6 +308,92 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                     <option>Human → Human</option>
                   </select>
                 </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
+                  Gig Title
+                </label>
+                <input
+                  type="text"
+                  disabled={loading}
+                  placeholder={
+                    category === "DESIGN"
+                      ? "e.g. Design system migration / 12 surfaces"
+                      : category === "RESEARCH"
+                      ? "e.g. Tokenomics simulation & threat model"
+                      : category === "AI & DATA"
+                      ? "e.g. 1,000 Pairwise RLHF Evaluation Dataset"
+                      : category === "OPERATIONS"
+                      ? "e.g. Developer Docs Localization & Deployment"
+                      : "e.g. Rust async benchmark suite"
+                  }
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "#fff",
+                    padding: "0.6rem",
+                    borderRadius: "6px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
+                  Specifications & Acceptance Criteria
+                </label>
+                <textarea
+                  rows={2}
+                  disabled={loading}
+                  placeholder="Describe the expected deliverable, quality benchmarks, and verification format (Figma, GitHub, Notion, etc.)."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "#fff",
+                    padding: "0.6rem",
+                    borderRadius: "6px",
+                    outline: "none",
+                    resize: "none",
+                    fontSize: "0.85rem",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
+                    Escrow Budget (SOL)
+                  </label>
+                  <span className="mono" style={{ fontSize: "0.68rem", color: "#10b981" }}>
+                    VAULT PDA LOCKED
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.001"
+                  disabled={loading}
+                  placeholder="0.05"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "#fff",
+                    padding: "0.6rem",
+                    borderRadius: "6px",
+                    outline: "none",
+                  }}
+                  className="mono"
+                />
+                <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.4)" }}>
+                  Transfers directly from your wallet into the program vault. Released only upon your approval or arbitrated settlement.
+                </span>
               </div>
 
               {errorText && (

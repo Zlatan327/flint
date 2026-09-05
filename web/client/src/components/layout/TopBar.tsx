@@ -1,14 +1,16 @@
 // Black Ledger style reminder: the top bar is an instrument strip—quiet, ruled, and state-led.
 
-import { ArrowUpRight, Menu, Radio, Wallet, X } from "lucide-react";
+import { ArrowUpRight, Menu, Radio, Wallet, X, Bot } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { navItems } from "@/lib/flint-data";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { WalletModal } from "@/components/wallet/WalletModal";
+import { AgentConsoleModal } from "@/components/protocol/AgentConsoleModal";
 
 export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isAgentConsoleOpen, setIsAgentConsoleOpen] = useState(false);
   const { connected, walletAddress, balance, setIsModalOpen, disconnectWallet } = useFlintWallet();
 
   return (
@@ -52,13 +54,35 @@ export function TopBar() {
           <span className="mono">ROLLUP / LIVE</span>
           <span className="network-name">MAGICBLOCK</span>
         </div>
+        <button
+          type="button"
+          onClick={() => setIsAgentConsoleOpen(true)}
+          className="mono"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            background: "rgba(255, 107, 0, 0.12)",
+            border: "1px solid rgba(255, 107, 0, 0.3)",
+            color: "#FF6B00",
+            padding: "5px 10px",
+            borderRadius: "6px",
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          <Bot size={13} /> AGENT API
+        </button>
+
         <button className="icon-button mobile-menu" type="button" aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={() => setMenuOpen((open) => !open)}>
           {menuOpen ? <X size={16} /> : <Menu size={16} />}
         </button>
 
         {connected && walletAddress ? (
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div
+            <Link
+              href="/passport"
               className="mono"
               style={{
                 display: "flex",
@@ -69,7 +93,10 @@ export function TopBar() {
                 padding: "6px 12px",
                 borderRadius: "6px",
                 fontSize: "0.78rem",
+                textDecoration: "none",
+                cursor: "pointer",
               }}
+              title="View your on-chain Builder Passport"
             >
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
               <span style={{ color: "#fff", fontWeight: 600 }}>
@@ -80,7 +107,7 @@ export function TopBar() {
                   {balance.toFixed(3)} SOL
                 </span>
               )}
-            </div>
+            </Link>
             <button
               type="button"
               onClick={disconnectWallet}
@@ -108,6 +135,10 @@ export function TopBar() {
         )}
       </div>
       <WalletModal />
+      <AgentConsoleModal
+        isOpen={isAgentConsoleOpen}
+        onClose={() => setIsAgentConsoleOpen(false)}
+      />
     </header>
   );
 }

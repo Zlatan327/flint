@@ -11,6 +11,8 @@ import Home from "./pages/Home";
 
 import GigExchangePage from "./pages/GigExchangePage";
 import PredictionMarketPage from "./pages/PredictionMarketPage";
+import BuilderPassportPage from "./pages/BuilderPassportPage";
+import GigDetailPage from "./pages/GigDetailPage";
 
 function Router() {
   return (
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/exchange" component={GigExchangePage} />
       <Route path="/markets" component={PredictionMarketPage} />
+      <Route path="/passport" component={BuilderPassportPage} />
+      <Route path="/gig/:id" component={GigDetailPage} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

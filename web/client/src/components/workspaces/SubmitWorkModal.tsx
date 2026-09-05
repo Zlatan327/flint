@@ -3,12 +3,13 @@ import { X, Send, ShieldCheck, CheckCircle2, Loader2, ExternalLink } from "lucid
 import { PublicKey, Connection, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { DEVNET_RPC, ESCROW_PROGRAM_ID } from "@/lib/flint-escrow-client";
+import { DeliverableType } from "@/lib/flint-data";
 
 interface SubmitWorkModalProps {
   isOpen: boolean;
   gig: any;
   onClose: () => void;
-  onSuccess: (gigId: string, deliverableUrl: string) => void;
+  onSuccess: (gigId: string, deliverableUrl: string, deliverableType?: DeliverableType, notes?: string, hashHex?: string) => void;
 }
 
 const SUBMIT_WORK_DISCRIMINATOR = new Uint8Array([
@@ -17,12 +18,25 @@ const SUBMIT_WORK_DISCRIMINATOR = new Uint8Array([
 
 export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, onClose, onSuccess }) => {
   const { walletAddress, connected, setIsModalOpen } = useFlintWallet();
+  const [deliverableType, setDeliverableType] = useState<DeliverableType>(
+    gig?.deliverableType ||
+    (gig?.category === "DESIGN"
+      ? "Figma / Design URL"
+      : gig?.category === "RESEARCH"
+      ? "Research Doc / Whitepaper"
+      : gig?.category === "AI & DATA"
+      ? "AI Dataset / Weights"
+      : gig?.category === "OPERATIONS"
+      ? "Deployment Receipt"
+      : "Code / Repository PR")
+  );
   const [deliverableUrl, setDeliverableUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [errorText, setErrorText] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
+  const [generatedHash, setGeneratedHash] = useState<string | null>(null);
 
   if (!isOpen || !gig) return null;
 
@@ -46,11 +60,13 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
       const provider = win.phantom?.solana || win.solflare || win.solana;
       if (!provider) throw new Error("No Solana browser wallet detected.");
 
-      // Compute 32-byte sha256 hash of deliverable URL + notes
+      // Compute 32-byte sha256 hash of deliverable type + URL + notes + walletAddress
       const encoder = new TextEncoder();
-      const rawPayload = encoder.encode(`${deliverableUrl}::${notes}::${walletAddress}`);
+      const rawPayload = encoder.encode(`${deliverableType}::${deliverableUrl}::${notes}::${walletAddress}`);
       const hashBuffer = await crypto.subtle.digest("SHA-256", rawPayload);
       const hashBytes = new Uint8Array(hashBuffer);
+      const hashHex = Array.from(hashBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+      setGeneratedHash(hashHex);
 
       setStatusText("Awaiting wallet signature...");
 
@@ -88,7 +104,7 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
         setTxSignature(sig);
       }
 
-      onSuccess(gig.id, deliverableUrl);
+      onSuccess(gig.id, deliverableUrl, deliverableType, notes, hashHex);
     } catch (err: any) {
       console.error("Submission failed:", err);
       // If the on-chain account doesn't match the caller or is a mock gig, fallback gracefully:
@@ -221,12 +237,61 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
             <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                  Pull Request / Deliverable URL
+                  Deliverable Format / Discipline
                 </label>
+                <select
+                  value={deliverableType}
+                  disabled={loading}
+                  onChange={(e) => setDeliverableType(e.target.value as DeliverableType)}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "#fff",
+                    padding: "0.6rem",
+                    borderRadius: "6px",
+                    outline: "none",
+                  }}
+                  className="mono"
+                >
+                  <option value="Code / Repository PR">💻 Code / Repository Pull Request</option>
+                  <option value="Figma / Design URL">🎨 Figma / Design File or Prototype</option>
+                  <option value="Research Doc / Whitepaper">🔬 Research Document / Whitepaper (Docs, Notion, PDF)</option>
+                  <option value="AI Dataset / Weights">🤖 AI Dataset / Model Weights (Hugging Face, CSV, JSON)</option>
+                  <option value="Deployment Receipt">⚡ Deployment / Milestone Receipt (Tx Signature, URL)</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
+                    {deliverableType === "Figma / Design URL"
+                      ? "Figma File / Prototype URL"
+                      : deliverableType === "Research Doc / Whitepaper"
+                      ? "Document / Whitepaper Link"
+                      : deliverableType === "AI Dataset / Weights"
+                      ? "Hugging Face / Dataset Link"
+                      : deliverableType === "Deployment Receipt"
+                      ? "Solana Tx / Deployment URL"
+                      : "Pull Request / Repository URL"}
+                  </label>
+                  <span className="mono" style={{ fontSize: "0.68rem", color: "#FF6B00" }}>
+                    SEALED AS SHA-256 PROOF
+                  </span>
+                </div>
                 <input
                   type="url"
                   disabled={loading}
-                  placeholder="https://github.com/org/repo/pull/42"
+                  placeholder={
+                    deliverableType === "Figma / Design URL"
+                      ? "https://www.figma.com/file/..."
+                      : deliverableType === "Research Doc / Whitepaper"
+                      ? "https://docs.google.com/... or Notion, Arweave, PDF"
+                      : deliverableType === "AI Dataset / Weights"
+                      ? "https://huggingface.co/datasets/... or IPFS"
+                      : deliverableType === "Deployment Receipt"
+                      ? "https://explorer.solana.com/tx/..."
+                      : "https://github.com/org/repo/pull/42"
+                  }
                   value={deliverableUrl}
                   onChange={(e) => setDeliverableUrl(e.target.value)}
                   style={{
@@ -242,12 +307,22 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
 
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                  Execution Proof / Notes
+                  Execution Proof / Verifier Notes
                 </label>
                 <textarea
                   rows={3}
                   disabled={loading}
-                  placeholder="Summary of benchmark results, test coverage, and deployment verification."
+                  placeholder={
+                    deliverableType === "Figma / Design URL"
+                      ? "Summary of frame index, typography tokens, auto-layout variants, and handoff notes."
+                      : deliverableType === "Research Doc / Whitepaper"
+                      ? "Executive takeaways, data sources, simulation methodology, and key risk assumptions."
+                      : deliverableType === "AI Dataset / Weights"
+                      ? "Dataset split distribution, validation loss, schema specs, and benchmark verification."
+                      : deliverableType === "Deployment Receipt"
+                      ? "Environment target (Devnet/Mainnet), program IDs, configuration hashes, and test signatures."
+                      : "Summary of benchmark results, test coverage, and deployment verification."
+                  }
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   style={{

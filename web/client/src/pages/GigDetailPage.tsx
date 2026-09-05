@@ -1,0 +1,399 @@
+import { useState, useEffect } from "react";
+import { Link, useRoute } from "wouter";
+import { ArrowLeft, Award, CheckCircle2, ChevronUp, Clock, ExternalLink, FileCode, Figma, BookOpen, Database, Zap, Shield, ShieldCheck, AlertTriangle, Send, Wallet } from "lucide-react";
+import { TopBar } from "@/components/layout/TopBar";
+import { SectionLabel } from "@/components/layout/SectionLabel";
+import { useFlintWallet } from "@/contexts/WalletContext";
+import { gigs, Gig } from "@/lib/flint-data";
+import { SubmitWorkModal } from "@/components/workspaces/SubmitWorkModal";
+import { DeliverableReviewModal } from "@/components/workspaces/DeliverableReviewModal";
+import { placeMarketOrderOnChain } from "@/lib/flint-market-client";
+import { PublicKey } from "@solana/web3.js";
+
+export default function GigDetailPage() {
+  const [, params] = useRoute("/gig/:id");
+  const gigId = params?.id || "GIG-204";
+  const { connected, walletAddress, setIsModalOpen } = useFlintWallet();
+
+  const [currentGig, setCurrentGig] = useState<Gig>(() => {
+    return gigs.find((g) => g.id === gigId) || gigs[0];
+  });
+
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+  // Prediction market betting state for this specific gig
+  const [betSide, setBetSide] = useState<"YES" | "NO">("YES");
+  const [stakeSol, setStakeSol] = useState("0.1");
+  const [trading, setTrading] = useState(false);
+  const [tradeTx, setTradeTx] = useState<string | null>(null);
+
+  useEffect(() => {
+    const found = gigs.find((g) => g.id === gigId);
+    if (found) setCurrentGig(found);
+  }, [gigId]);
+
+  const getFormatIcon = (category: string) => {
+    switch (category) {
+      case "DESIGN":
+        return <Figma size={16} color="#FF6B00" />;
+      case "RESEARCH":
+        return <BookOpen size={16} color="#38bdf8" />;
+      case "AI & DATA":
+        return <Database size={16} color="#a855f7" />;
+      case "OPERATIONS":
+        return <Zap size={16} color="#eab308" />;
+      default:
+        return <FileCode size={16} color="#10b981" />;
+    }
+  };
+
+  const handleWorkSubmitted = (id: string, url: string, deliverableType?: any, notes?: string, hashHex?: string) => {
+    setCurrentGig((prev) => ({
+      ...prev,
+      status: "Reviewing",
+      submissions: (prev.submissions || 0) + 1,
+      deliverableUrl: url,
+      deliverableType: deliverableType || prev.deliverableType,
+      deliverableNotes: notes,
+      deliverableHash: hashHex,
+    }));
+    setIsSubmitModalOpen(false);
+  };
+
+  const handleSettled = (id: string, _txSig: string) => {
+    setCurrentGig((prev) => ({
+      ...prev,
+      status: "Funded",
+    }));
+    setIsReviewModalOpen(false);
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!connected || !walletAddress) {
+      setIsModalOpen(true);
+      return;
+    }
+
+    setTrading(true);
+    try {
+      const win = window as any;
+      const provider = win.phantom?.solana || win.solflare || win.solana;
+      if (!provider) throw new Error("No Solana wallet detected.");
+
+      const result = await placeMarketOrderOnChain(
+        {
+          marketId: 4,
+          isYes: betSide === "YES",
+          amountSol: parseFloat(stakeSol) || 0.1,
+          traderPubkey: new PublicKey(walletAddress),
+        },
+        provider
+      );
+      setTradeTx(result.txSignature);
+    } catch (err: any) {
+      console.error("Order failed:", err);
+      alert(`Trade error: ${err?.message || "Transaction rejected"}`);
+    } finally {
+      setTrading(false);
+    }
+  };
+
+  return (
+    <div className="flint-app">
+      <TopBar />
+
+      <main className="subpage-main">
+        {/* Back Link */}
+        <div style={{ marginBottom: "1.5rem" }}>
+          <Link href="/exchange" style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "rgba(255,255,255,0.45)", textDecoration: "none", fontSize: "0.78rem" }} className="mono">
+            <ArrowLeft size={14} /> BACK TO GIG EXCHANGE
+          </Link>
+        </div>
+
+        {/* Gig Header */}
+        <header className="category-header" style={{ marginBottom: "2rem" }}>
+          <div>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", marginBottom: "0.5rem" }}>
+              <span className="mono" style={{ fontSize: "0.72rem", color: "#FF6B00", fontWeight: 700 }}>
+                {currentGig.id}
+              </span>
+              <span className="mono" style={{ fontSize: "0.68rem", padding: "2px 8px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", color: "#fff", display: "flex", alignItems: "center", gap: "5px" }}>
+                {getFormatIcon(currentGig.category)} {currentGig.category}
+              </span>
+              <span className="mono" style={{ fontSize: "0.68rem", padding: "2px 8px", borderRadius: "4px", background: "rgba(16, 185, 129, 0.1)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                {currentGig.status.toUpperCase()}
+              </span>
+              <span className="mono" style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.45)" }}>
+                {currentGig.lane} · {currentGig.verification}
+              </span>
+            </div>
+
+            <h1 style={{ fontSize: "2.2rem", margin: "0.2rem 0 0.8rem", color: "#fff" }}>
+              {currentGig.title}
+            </h1>
+
+            <p style={{ maxWidth: "680px", color: "rgba(255,255,255,0.75)", fontSize: "0.95rem", lineHeight: "1.5" }}>
+              {currentGig.description || "Decentralized labor escrow locked in Solana Devnet Vault PDA. Deliverables require cryptographic proof commitment before payout release."}
+            </p>
+          </div>
+
+          {/* Escrow Status Summary Card */}
+          <aside className="category-summary category-summary-market" style={{ minWidth: "260px" }}>
+            <ShieldCheck size={20} color="#10b981" />
+            <span className="metric-label">ESCROW BUDGET</span>
+            <strong className="mono" style={{ fontSize: "2.2rem", color: "#fff" }}>
+              {currentGig.budget}
+            </strong>
+            <p>Vault custody established. Funds cannot be seized or withdrawn without review or dispute.</p>
+            <div className="category-summary-foot mono">
+              <span>CLOSES {currentGig.deadline}</span>
+              <span>{currentGig.submissions} SUBMISSIONS</span>
+            </div>
+          </aside>
+        </header>
+
+        {/* Two-Column Detail Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+          {/* Left Column: Specifications, Proof & PDA Details */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            {/* Acceptance Criteria */}
+            <div style={{ background: "rgba(10, 12, 16, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "1.5rem" }}>
+              <SectionLabel code="REQ / 001" tone="amber">Deliverable Requirements</SectionLabel>
+              <h2 style={{ fontSize: "1.2rem", margin: "0.3rem 0 0.75rem" }}>Quality Acceptance Criteria</h2>
+              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.88rem", lineHeight: "1.5" }}>
+                {currentGig.acceptanceCriteria || "Deliverable must adhere strictly to the project brief. Worker must submit verifiable URL (Figma, GitHub, Notion, or Dataset) which is sealed as a 32-byte cryptographic SHA-256 hash into the escrow state."}
+              </p>
+
+              <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span className="mono" style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>ACCEPTED FORMAT:</span>
+                <span className="mono" style={{ fontSize: "0.8rem", color: "#38bdf8" }}>
+                  {currentGig.deliverableType || "Figma / GitHub PR / Research Doc / AI Dataset"}
+                </span>
+              </div>
+            </div>
+
+            {/* Solana On-Chain Custody */}
+            <div style={{ background: "rgba(10, 12, 16, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "1.5rem" }}>
+              <SectionLabel code="L1 / 002" tone="emerald">On-Chain Protocol State</SectionLabel>
+              <h2 style={{ fontSize: "1.2rem", margin: "0.3rem 0 0.75rem" }}>Solana Program Accounts</h2>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }} className="mono">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem" }}>
+                  <span style={{ color: "#888" }}>ESCROW CONTRACT:</span>
+                  <a
+                    href="https://explorer.solana.com/address/2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h?cluster=devnet"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "#38bdf8", textDecoration: "none" }}
+                  >
+                    2PQbti...QD6h ↗
+                  </a>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem" }}>
+                  <span style={{ color: "#888" }}>VAULT PDA CUSTODY:</span>
+                  <span style={{ color: "#10b981" }}>SOL LOCKED ({currentGig.budget})</span>
+                </div>
+
+                {currentGig.deliverableHash && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", paddingTop: "6px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span style={{ color: "#888", fontSize: "0.68rem" }}>DELIVERABLE COMMITMENT HASH:</span>
+                    <span style={{ color: "#FF6B00", fontSize: "0.7rem", wordBreak: "break-all" }}>
+                      {currentGig.deliverableHash}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Primary Action Section */}
+            <div style={{ background: "rgba(10, 12, 16, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "1.5rem" }}>
+              <SectionLabel code="ACT / 003">Worker & Requester Actions</SectionLabel>
+              <h2 style={{ fontSize: "1.2rem", margin: "0.3rem 0 1rem" }}>Execution Controls</h2>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {currentGig.status === "Accepting" && (
+                  <button
+                    className="amber-button mono"
+                    style={{ width: "100%", padding: "0.85rem", fontSize: "0.9rem", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}
+                    onClick={() => connected ? setIsSubmitModalOpen(true) : setIsModalOpen(true)}
+                  >
+                    <Send size={16} /> SUBMIT WORK DELIVERABLE
+                  </button>
+                )}
+
+                {currentGig.status === "Reviewing" && (
+                  <button
+                    className="emerald-button mono"
+                    style={{ width: "100%", padding: "0.85rem", fontSize: "0.9rem", background: "#FF6B00", color: "#000", fontWeight: 700, border: "none", borderRadius: "6px", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}
+                    onClick={() => setIsReviewModalOpen(true)}
+                  >
+                    <ShieldCheck size={16} /> INSPECT DELIVERABLE & RELEASE FUNDS
+                  </button>
+                )}
+
+                {currentGig.status === "Funded" && (
+                  <div style={{ padding: "12px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "8px", color: "#10b981", textAlign: "center" }} className="mono">
+                    <CheckCircle2 size={18} style={{ display: "inline", verticalAlign: "middle", marginRight: "6px" }} />
+                    Escrow Settled & Completed on Devnet
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Embedded Delivery Prediction Market Mini-Book */}
+          <div>
+            <div style={{ background: "rgba(10, 12, 16, 0.8)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "10px", padding: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <SectionLabel code="MKT / UNDERWRITE" tone="amber">Performance Insurance</SectionLabel>
+                <span className="mono" style={{ fontSize: "0.68rem", color: "#10b981" }}>DEVNET PRIVATE ROLLUP</span>
+              </div>
+              
+              <h2 style={{ fontSize: "1.3rem", margin: "0 0 0.5rem" }}>Underwrite Delivery Risk</h2>
+              <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.82rem", lineHeight: "1.4", margin: "0 0 1.25rem" }}>
+                Speculators and underwriters bet on whether this gig will be completed on-time. Underwriting creates crowd-sourced insurance for the requester.
+              </p>
+
+              {/* Odds Meter */}
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "14px", marginBottom: "1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <span className="mono" style={{ fontSize: "0.72rem", color: "#888" }}>ON-TIME DELIVERY PROBABILITY</span>
+                  <strong className="mono" style={{ fontSize: "1.2rem", color: "#10b981" }}>74%</strong>
+                </div>
+                <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.08)", borderRadius: "3px", overflow: "hidden" }}>
+                  <div style={{ width: "74%", height: "100%", background: "#10b981" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "0.7rem" }} className="mono">
+                  <span style={{ color: "#10b981" }}>YES: 0.74 SOL</span>
+                  <span style={{ color: "#f43f5e" }}>NO: 0.26 SOL</span>
+                </div>
+              </div>
+
+              {/* Buy Form */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setBetSide("YES")}
+                    style={{
+                      padding: "10px",
+                      borderRadius: "6px",
+                      border: betSide === "YES" ? "2px solid #10b981" : "1px solid rgba(255,255,255,0.1)",
+                      background: betSide === "YES" ? "rgba(16, 185, 129, 0.15)" : "rgba(255,255,255,0.02)",
+                      color: betSide === "YES" ? "#10b981" : "rgba(255,255,255,0.6)",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                    }}
+                    className="mono"
+                  >
+                    BUY YES (74%)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBetSide("NO")}
+                    style={{
+                      padding: "10px",
+                      borderRadius: "6px",
+                      border: betSide === "NO" ? "2px solid #f43f5e" : "1px solid rgba(255,255,255,0.1)",
+                      background: betSide === "NO" ? "rgba(244, 63, 94, 0.15)" : "rgba(255,255,255,0.02)",
+                      color: betSide === "NO" ? "#f43f5e" : "rgba(255,255,255,0.6)",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                    }}
+                    className="mono"
+                  >
+                    BUY NO (26%)
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }} className="mono">
+                    STAKE AMOUNT (SOL)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min="0.01"
+                    disabled={trading}
+                    value={stakeSol}
+                    onChange={(e) => setStakeSol(e.target.value)}
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: "#fff",
+                      padding: "0.6rem",
+                      borderRadius: "6px",
+                      outline: "none",
+                    }}
+                    className="mono"
+                  />
+                </div>
+
+                {tradeTx && (
+                  <div style={{ padding: "8px 10px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "6px", fontSize: "0.72rem", color: "#10b981" }} className="mono">
+                    Order confirmed! <a href={`https://explorer.solana.com/tx/${tradeTx}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>Explorer ↗</a>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  disabled={trading}
+                  onClick={handlePlaceOrder}
+                  style={{
+                    padding: "0.8rem",
+                    borderRadius: "6px",
+                    background: betSide === "YES" ? "#10b981" : "#f43f5e",
+                    color: "#000",
+                    border: "none",
+                    fontWeight: 700,
+                    fontSize: "0.85rem",
+                    cursor: trading ? "not-allowed" : "pointer",
+                  }}
+                  className="mono"
+                >
+                  {trading ? "EXECUTING ON DEVNET..." : `CONFIRM ${betSide} ORDER (${stakeSol} SOL)`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Modals */}
+      <SubmitWorkModal
+        isOpen={isSubmitModalOpen}
+        gig={currentGig}
+        onClose={() => setIsSubmitModalOpen(false)}
+        onSuccess={handleWorkSubmitted}
+      />
+
+      <DeliverableReviewModal
+        isOpen={isReviewModalOpen}
+        gig={currentGig}
+        onClose={() => setIsReviewModalOpen(false)}
+        onSettled={handleSettled}
+      />
+
+      {/* Footer */}
+      <footer className="site-footer">
+        <div className="footer-brand">
+          <span className="brand-mark brand-mark-small" aria-hidden="true">
+            <span className="brand-mark-cut" />
+          </span>
+          <span className="brand-name">FLINT</span>
+          <span className="mono">GIG / {currentGig.id}</span>
+        </div>
+        <div className="footer-links">
+          <Link href="/exchange"><Shield size={13} /> GIG EXCHANGE</Link>
+          <Link href="/markets"><Award size={13} /> PREDICTION MARKET</Link>
+          <Link href="/passport"><CheckCircle2 size={13} /> BUILDER PASSPORT</Link>
+        </div>
+        <a className="back-top mono" href="#top">BACK TO TOP <ChevronUp size={13} /></a>
+      </footer>
+    </div>
+  );
+}

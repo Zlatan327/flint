@@ -1,23 +1,27 @@
-import { gigs } from "@/lib/flint-data";
-import { ArrowUpRight, Filter, Plus, ExternalLink, CheckCircle2, Loader2 } from "lucide-react";
+import { gigs, GigCategory } from "@/lib/flint-data";
+import { ArrowUpRight, Filter, Plus, ExternalLink, CheckCircle2, Loader2, FileCode, Figma, BookOpen, Database, Zap } from "lucide-react";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { SectionLabel } from "@/components/layout/SectionLabel";
 import { PostGigModal } from "./PostGigModal";
 import { SubmitWorkModal } from "./SubmitWorkModal";
+import { DeliverableReviewModal } from "./DeliverableReviewModal";
 import { useState, useEffect } from "react";
 import { EscrowTxResult, settleEscrowOnChain } from "@/lib/flint-escrow-client";
 import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
 import { PublicKey } from "@solana/web3.js";
+import { Link } from "wouter";
 
 export function GigExchange() {
   const { connected, walletAddress, setIsModalOpen } = useFlintWallet();
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [selectedGigForSubmission, setSelectedGigForSubmission] = useState<any | null>(null);
+  const [selectedGigForReview, setSelectedGigForReview] = useState<any | null>(null);
   const [gigList, setGigList] = useState(gigs);
   const [loadingOnChain, setLoadingOnChain] = useState(false);
   const [settlingGigId, setSettlingGigId] = useState<string | null>(null);
 
   // Filter state
+  const [filterDomain, setFilterDomain] = useState("ALL");
   const [filterModel, setFilterModel] = useState("ALL");
   const [filterLane, setFilterLane] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
@@ -92,17 +96,38 @@ export function GigExchange() {
     }
   };
 
-  const handleWorkSubmitted = (gigId: string, _url: string) => {
+  const handleWorkSubmitted = (gigId: string, url: string, deliverableType?: any, notes?: string, hashHex?: string) => {
     setGigList((prev) =>
-      prev.map((g) => (g.id === gigId ? { ...g, status: "Reviewing" as const, submissions: (g.submissions || 0) + 1 } : g))
+      prev.map((g) =>
+        g.id === gigId
+          ? {
+              ...g,
+              status: "Reviewing" as const,
+              submissions: (g.submissions || 0) + 1,
+              deliverableUrl: url,
+              deliverableType: deliverableType || g.deliverableType,
+              deliverableNotes: notes,
+              deliverableHash: hashHex,
+            }
+          : g
+      )
     );
     setSelectedGigForSubmission(null);
+  };
+
+  const handleSettled = (gigId: string, _txSig: string) => {
+    setGigList((prev) =>
+      prev.map((g) => (g.id === gigId ? { ...g, status: "Funded" as const } : g))
+    );
+    setSelectedGigForReview(null);
   };
 
   const handleGigCreated = (result: EscrowTxResult, gigData: any) => {
     const newGig = {
       id: `GIG-${result.gigId}`,
       title: gigData.title,
+      category: gigData.category || "ENGINEERING",
+      description: gigData.description,
       lane: gigData.lane,
       budget: gigData.budget,
       status: "Accepting" as const,
@@ -111,13 +136,14 @@ export function GigExchange() {
       submissions: 0,
       pda: result.gigEscrowPda,
       vault: result.vaultPda,
-      client: walletAddress,
+      client: walletAddress || undefined,
       txSignature: result.txSignature,
     };
     setGigList((prev) => [newGig, ...prev]);
   };
 
   const filteredGigs = gigList.filter((g) => {
+    if (filterDomain !== "ALL" && g.category !== filterDomain) return false;
     if (filterModel === "BOUNTY" && !g.verification.includes("COMMIT")) return false;
     if (filterModel === "CONTEST" && !g.verification.includes("CONTEST")) return false;
     if (filterLane !== "ALL" && g.lane !== filterLane) return false;
@@ -154,16 +180,26 @@ export function GigExchange() {
             <span className="mono">BUDGET / STATUS</span>
           </div>
           {filteredGigs.map((gig: any) => {
-            const isCreator = connected && walletAddress && gig.client === walletAddress;
             const isReviewing = gig.status === "Reviewing";
 
             return (
               <article className="market-book-row" key={gig.id}>
                 <div className="market-book-main">
-                  <span className="mono market-book-id">
-                    {gig.id} {gig.pda && <span style={{ color: "#10b981", fontSize: "0.65rem" }}>● ON-CHAIN</span>}
-                  </span>
-                  <h3>{gig.title}</h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="mono market-book-id">
+                      {gig.id} {gig.pda && <span style={{ color: "#10b981", fontSize: "0.65rem" }}>● ON-CHAIN</span>}
+                    </span>
+                    {gig.category && (
+                      <span className="mono" style={{ fontSize: "0.62rem", padding: "1px 6px", borderRadius: "4px", background: "rgba(255, 107, 0, 0.12)", color: "#FF6B00", border: "1px solid rgba(255, 107, 0, 0.25)" }}>
+                        {gig.category}
+                      </span>
+                    )}
+                  </div>
+                  <Link href={`/gig/${gig.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                    <h3 style={{ cursor: "pointer", transition: "color 0.15s" }} onMouseEnter={(e) => (e.currentTarget.style.color = "#FF6B00")} onMouseLeave={(e) => (e.currentTarget.style.color = "#fff")}>
+                      {gig.title}
+                    </h3>
+                  </Link>
                   <span className="mono market-book-meta">
                     {gig.lane} · {gig.verification} · CLOSES {gig.deadline}
                   </span>
@@ -179,18 +215,14 @@ export function GigExchange() {
                       SUBMIT WORK
                     </button>
                   )}
-                  {isReviewing && isCreator && (
+                  {isReviewing && (
                     <button
                       className="emerald-button mono"
-                      style={{ background: "#10b981", color: "#000", fontWeight: 700, padding: "6px 12px", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.75rem" }}
-                      disabled={settlingGigId === gig.id}
-                      onClick={() => handleSettle(gig)}
+                      style={{ background: "#FF6B00", color: "#000", fontWeight: 700, padding: "6px 12px", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.75rem" }}
+                      onClick={() => setSelectedGigForReview(gig)}
                     >
-                      {settlingGigId === gig.id ? "RELEASING..." : "APPROVE & RELEASE"}
+                      INSPECT DELIVERABLE
                     </button>
-                  )}
-                  {isReviewing && !isCreator && (
-                    <span className="mono" style={{ color: "#FF6B00", fontSize: "0.75rem" }}>IN REVIEW</span>
                   )}
                   {gig.status === "Funded" && (
                     <button className="outline-button" onClick={() => handleInteract("view_escrow", gig)}>
@@ -209,6 +241,22 @@ export function GigExchange() {
             <Filter size={15} />
           </div>
           <div className="balance-ledger">
+            <div style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '8px' }}>
+              <span style={{ color: '#e5e5e5' }}>Labor Domain</span>
+              <select 
+                className="mono" 
+                value={filterDomain}
+                onChange={(e) => setFilterDomain(e.target.value)}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}
+              >
+                <option value="ALL">ALL DISCIPLINES</option>
+                <option value="ENGINEERING">💻 ENGINEERING</option>
+                <option value="DESIGN">🎨 DESIGN & CREATIVE</option>
+                <option value="RESEARCH">🔬 RESEARCH & STRATEGY</option>
+                <option value="AI & DATA">🤖 AI & DATA EVALS</option>
+                <option value="OPERATIONS">⚡ OPERATIONS & OPS</option>
+              </select>
+            </div>
             <div style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '8px' }}>
               <span style={{ color: '#e5e5e5' }}>Settlement Model</span>
               <select 
@@ -265,6 +313,13 @@ export function GigExchange() {
         gig={selectedGigForSubmission}
         onClose={() => setSelectedGigForSubmission(null)}
         onSuccess={handleWorkSubmitted}
+      />
+
+      <DeliverableReviewModal
+        isOpen={Boolean(selectedGigForReview)}
+        gig={selectedGigForReview}
+        onClose={() => setSelectedGigForReview(null)}
+        onSettled={handleSettled}
       />
     </section>
   );

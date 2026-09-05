@@ -109,6 +109,7 @@ export async function fetchOnChainGigs(): Promise<Gig[]> {
       parsedGigs.push({
         id: `GIG-${decoded.gigId}`,
         title: `${decoded.settlementModel.toUpperCase()}: Escrow #${decoded.gigId}`,
+        category: "ENGINEERING" as const,
         lane: "Human → Agent",
         budget: `${decoded.totalAmountSol.toFixed(2)} SOL`,
         deadline: deadlineStr,
