@@ -154,3 +154,70 @@ export async function initializeAndDepositEscrow(
     explorerUrl: `https://explorer.solana.com/tx/${txSignature}?cluster=devnet`,
   };
 }
+
+const SETTLE_ESCROW_DISCRIMINATOR = new Uint8Array([
+  0x24, 0x5a, 0x18, 0xe4, 0xcd, 0xae, 0xc9, 0x4e,
+]);
+
+/**
+ * Settles an escrow on-chain, releasing funds from Vault to Freelancer
+ */
+export async function settleEscrowOnChain(
+  gigEscrowPdaStr: string,
+  freelancerPubkeyStr: string,
+  clientPubkey: PublicKey,
+  provider: any
+): Promise<string> {
+  const connection = new Connection(DEVNET_RPC, "confirmed");
+  const gigEscrowPda = new PublicKey(gigEscrowPdaStr);
+  const freelancerPubkey = new PublicKey(freelancerPubkeyStr);
+
+  const [vaultPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault"), gigEscrowPda.toBuffer()],
+    ESCROW_PROGRAM_ID
+  );
+
+  const REPUTATION_PROGRAM_ID = new PublicKey("J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg");
+  const [passportPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("builder_passport"), freelancerPubkey.toBuffer()],
+    REPUTATION_PROGRAM_ID
+  );
+  const [sbtPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("sbt"), gigEscrowPda.toBuffer()],
+    REPUTATION_PROGRAM_ID
+  );
+
+  const instruction = new TransactionInstruction({
+    programId: ESCROW_PROGRAM_ID,
+    data: Buffer.from(SETTLE_ESCROW_DISCRIMINATOR),
+    keys: [
+      { pubkey: gigEscrowPda, isSigner: false, isWritable: true },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: freelancerPubkey, isSigner: false, isWritable: true },
+      { pubkey: passportPda, isSigner: false, isWritable: true },
+      { pubkey: sbtPda, isSigner: false, isWritable: true },
+      { pubkey: gigEscrowPda, isSigner: false, isWritable: true }, // placeholder core asset
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: REPUTATION_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = clientPubkey;
+
+  let txSignature = "";
+  if (provider.signAndSendTransaction) {
+    const res = await provider.signAndSendTransaction(transaction);
+    txSignature = res.signature || res.toString();
+  } else if (provider.sendTransaction) {
+    txSignature = await provider.sendTransaction(transaction, connection);
+  } else {
+    throw new Error("Connected wallet does not support signing.");
+  }
+
+  await connection.confirmTransaction(txSignature, "confirmed");
+  return txSignature;
+}

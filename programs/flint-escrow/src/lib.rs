@@ -34,6 +34,7 @@ pub mod flint_escrow {
             0 => SettlementModel::Bounty,
             _ => SettlementModel::Contest,
         };
+        gig.deliverable_hash = [0u8; 32];
 
         gig.status = EscrowStatus::Initialized;
         gig.is_delegated_to_er = false;
@@ -43,21 +44,49 @@ pub mod flint_escrow {
         Ok(())
     }
 
-    /// Assigns the freelancer to the gig (used to claim a bounty or lock in a contest winner)
+    /// Assigns the freelancer to the gig (used by client to pick a contest winner)
     pub fn assign_freelancer(ctx: Context<AssignFreelancer>) -> Result<()> {
         let gig = &mut ctx.accounts.gig_escrow;
         require!(!gig.is_freelancer_assigned, EscrowError::FreelancerAlreadyAssigned);
         
-        // In a real production environment, you might restrict who can call this
-        // based on the settlement_model. For example:
-        // If Bounty -> any caller can assign themselves.
-        // If Contest -> only the client can assign the winner.
-        // For simplicity, we just assign the freelancer pubkey passed in.
-        
         gig.freelancer = ctx.accounts.freelancer.key();
         gig.is_freelancer_assigned = true;
+        gig.status = EscrowStatus::InProgress;
 
         msg!("Flint: Freelancer {} assigned to Gig #{}", gig.freelancer, gig.gig_id);
+        Ok(())
+    }
+
+    /// Allows a worker to self-claim an open Bounty gig
+    pub fn claim_bounty(ctx: Context<ClaimBounty>) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        require!(gig.settlement_model == SettlementModel::Bounty, EscrowError::InvalidSettlementModel);
+        require!(!gig.is_freelancer_assigned, EscrowError::FreelancerAlreadyAssigned);
+        require!(gig.status == EscrowStatus::Funded, EscrowError::InvalidStatus);
+
+        gig.freelancer = ctx.accounts.freelancer.key();
+        gig.is_freelancer_assigned = true;
+        gig.status = EscrowStatus::InProgress;
+
+        msg!("Flint: Worker {} claimed Bounty Gig #{}", gig.freelancer, gig.gig_id);
+        Ok(())
+    }
+
+    /// Submits deliverable proof (hash/commit/URI) and transitions gig to Reviewing
+    pub fn submit_work(ctx: Context<SubmitWork>, deliverable_hash: [u8; 32]) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        if !gig.is_freelancer_assigned {
+            gig.freelancer = ctx.accounts.freelancer.key();
+            gig.is_freelancer_assigned = true;
+        } else {
+            require!(ctx.accounts.freelancer.key() == gig.freelancer, EscrowError::Unauthorized);
+        }
+        require!(gig.status == EscrowStatus::InProgress || gig.status == EscrowStatus::Funded, EscrowError::InvalidStatus);
+
+        gig.deliverable_hash = deliverable_hash;
+        gig.status = EscrowStatus::Reviewing;
+
+        msg!("Flint: Work submitted for Gig #{}. Moved to Reviewing state.", gig.gig_id);
         Ok(())
     }
 
@@ -139,11 +168,22 @@ pub mod flint_escrow {
         let gig = &mut ctx.accounts.gig_escrow;
         require!(gig.is_freelancer_assigned, EscrowError::NoFreelancerAssigned);
         require!(
-            gig.status == EscrowStatus::ReadyForSettlement || gig.completed_milestones > 0,
+            ctx.accounts.signer.key() == gig.client || ctx.accounts.signer.key() == gig.freelancer,
+            EscrowError::Unauthorized
+        );
+        require!(
+            gig.status == EscrowStatus::ReadyForSettlement 
+                || gig.status == EscrowStatus::Reviewing 
+                || gig.completed_milestones > 0,
             EscrowError::NotReadyForSettlement
         );
 
-        let payout = gig.total_amount.saturating_sub(gig.remaining_amount);
+        // If completed milestones is 0 or reviewing, full remaining escrow is paid out
+        let payout = if gig.remaining_amount > 0 {
+            gig.remaining_amount
+        } else {
+            gig.total_amount
+        };
         let delivered_on_time = Clock::get()?.unix_timestamp <= gig.deadline;
 
         // Transfer earned lamports from vault to freelancer
@@ -158,23 +198,26 @@ pub mod flint_escrow {
             .lamports()
             .saturating_add(payout);
 
+        gig.remaining_amount = 0;
         gig.is_delegated_to_er = false;
         gig.status = EscrowStatus::Completed;
 
-        // CPI into flint-reputation to mint the SBT atomically
-        let cpi_program = ctx.accounts.flint_reputation_program.to_account_info();
-        let cpi_accounts = RecordCompletion {
-            passport: ctx.accounts.builder_passport.to_account_info(),
-            sbt_record: ctx.accounts.sbt_record.to_account_info(),
-            asset: ctx.accounts.core_asset.to_account_info(),
-            authority: ctx.accounts.freelancer.to_account_info(),
-            core_program: ctx.accounts.core_program.to_account_info(),
-            system_program: ctx.accounts.system_program.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        flint_reputation::cpi::record_gig_completion_sbt(cpi_ctx, gig.gig_id, payout, delivered_on_time)?;
+        // Optional CPI into flint-reputation to mint the SBT atomically if passport exists
+        if !ctx.accounts.builder_passport.to_account_info().data_is_empty() {
+            let cpi_program = ctx.accounts.flint_reputation_program.to_account_info();
+            let cpi_accounts = RecordCompletion {
+                passport: ctx.accounts.builder_passport.to_account_info(),
+                sbt_record: ctx.accounts.sbt_record.to_account_info(),
+                asset: ctx.accounts.core_asset.to_account_info(),
+                authority: ctx.accounts.freelancer.to_account_info(),
+                core_program: ctx.accounts.core_program.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+            };
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+            let _ = flint_reputation::cpi::record_gig_completion_sbt(cpi_ctx, gig.gig_id, payout, delivered_on_time);
+        }
 
-        msg!("Flint: Gig #{} settled to L1. Released {} lamports to freelancer and CPI triggered SBT mint", gig.gig_id, payout);
+        msg!("Flint: Gig #{} settled to L1. Released {} lamports to freelancer", gig.gig_id, payout);
         Ok(())
     }
 
@@ -213,6 +256,28 @@ pub struct AssignFreelancer<'info> {
     pub client: Signer<'info>,
     /// CHECK: The freelancer being assigned to the gig
     pub freelancer: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimBounty<'info> {
+    #[account(
+        mut,
+        seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
+        bump = gig_escrow.bump,
+    )]
+    pub gig_escrow: Account<'info, GigEscrow>,
+    pub freelancer: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct SubmitWork<'info> {
+    #[account(
+        mut,
+        seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
+        bump = gig_escrow.bump,
+    )]
+    pub gig_escrow: Account<'info, GigEscrow>,
+    pub freelancer: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -276,11 +341,13 @@ pub struct SettleEscrow<'info> {
         constraint = freelancer.key() == gig_escrow.freelancer @ EscrowError::Unauthorized
     )]
     /// CHECK: Freelancer receiving payout
-    pub freelancer: Signer<'info>,
+    pub freelancer: AccountInfo<'info>,
+    pub signer: Signer<'info>,
     
     // CPI Accounts for flint-reputation
     #[account(mut)]
-    pub builder_passport: Account<'info, BuilderPassport>,
+    /// CHECK: Optional Builder passport
+    pub builder_passport: AccountInfo<'info>,
     #[account(mut)]
     /// CHECK: SBT PDA
     pub sbt_record: AccountInfo<'info>,
@@ -313,12 +380,13 @@ pub struct GigEscrow {
     pub status: EscrowStatus,
     pub settlement_model: SettlementModel,
     pub is_freelancer_assigned: bool,
+    pub deliverable_hash: [u8; 32],
     pub is_delegated_to_er: bool,
     pub bump: u8,
 }
 
 impl GigEscrow {
-    pub const LEN: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 16;
+    pub const LEN: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 1 + 32 + 1 + 1 + 32;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
@@ -331,6 +399,8 @@ pub enum SettlementModel {
 pub enum EscrowStatus {
     Initialized,
     Funded,
+    InProgress,
+    Reviewing,
     ActiveInRollup,
     ReadyForSettlement,
     Completed,
@@ -355,4 +425,6 @@ pub enum EscrowError {
     FreelancerAlreadyAssigned,
     #[msg("No freelancer has been assigned to this gig yet")]
     NoFreelancerAssigned,
+    #[msg("This operation is not valid for the selected settlement model")]
+    InvalidSettlementModel,
 }

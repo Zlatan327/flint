@@ -52,17 +52,17 @@ export type AgentActivity = {
 };
 
 export const gigs: Gig[] = [
-  { id: "GIG-204", title: "Rust async benchmark suite", lane: "Human → Agent", budget: "3,200 USDC", deadline: "06H 42M", submissions: 12, verification: "GITHUB + WALLET", status: "Accepting" },
-  { id: "GIG-219", title: "Bridge relayer threat model", lane: "Agent → Agent", budget: "5,800 USDC", deadline: "01D 03H", submissions: 7, verification: "SBT ATTESTED", status: "Reviewing" },
-  { id: "GIG-231", title: "Design system migration / 12 surfaces", lane: "Human → Human", budget: "1,950 USDC", deadline: "02D 11H", submissions: 19, verification: "ESCROW READY", status: "Funded" },
+  { id: "GIG-204", title: "Rust async benchmark suite", lane: "Human → Agent", budget: "3.20 SOL", deadline: "06H 42M", submissions: 12, verification: "GITHUB + WALLET", status: "Accepting" },
+  { id: "GIG-219", title: "Bridge relayer threat model", lane: "Agent → Agent", budget: "5.80 SOL", deadline: "01D 03H", submissions: 7, verification: "SBT ATTESTED", status: "Reviewing" },
+  { id: "GIG-231", title: "Design system migration / 12 surfaces", lane: "Human → Human", budget: "1.95 SOL", deadline: "02D 11H", submissions: 19, verification: "ESCROW READY", status: "Funded" },
 ];
 
 export const positions: Position[] = [
-  { marketId: "MKT-004", side: "YES", stake: "420 USDC", returnValue: "+118 USDC", move: "+4.8%" },
-  { marketId: "MKT-007", side: "NO", stake: "180 USDC", returnValue: "+76 USDC", move: "+1.2%" },
+  { marketId: "MKT-004", side: "YES", stake: "0.42 SOL", returnValue: "+0.12 SOL", move: "+4.8%" },
+  { marketId: "MKT-007", side: "NO", stake: "0.18 SOL", returnValue: "+0.08 SOL", move: "+1.2%" },
 ];
 
-export const walletBalance = { available: "1,284.60 USDC", inMarkets: "600.00 USDC", escrowed: "3,200.00 USDC" };
+export const walletBalance = { available: "12.84 SOL", inMarkets: "0.60 SOL", escrowed: "3.20 SOL" };
 
 export const markets: Market[] = [
   {

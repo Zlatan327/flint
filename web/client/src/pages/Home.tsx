@@ -1,6 +1,7 @@
 // Black Ledger style reminder: FLINT has two primary jobs—exchange work anonymously and price delivery risk. Supporting telemetry never competes with those workspaces.
 
 import { ChevronUp, Github, Shield, Zap } from "lucide-react";
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { HeroBanner } from "@/components/layout/HeroBanner";
 import { TopBar } from "@/components/layout/TopBar";
@@ -9,6 +10,23 @@ import { ProtocolStrip } from "@/components/protocol/ProtocolStrip";
 import { SBTPanel } from "@/components/protocol/SBTPanel";
 
 export default function Home() {
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash) {
+        const id = window.location.hash.substring(1);
+        const elem = document.getElementById(id);
+        if (elem) {
+          setTimeout(() => {
+            elem.scrollIntoView({ behavior: "smooth" });
+          }, 80);
+        }
+      }
+    };
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
+
   return (
     <div className="flint-app">
       <TopBar />

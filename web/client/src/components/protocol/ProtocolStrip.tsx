@@ -5,7 +5,7 @@ import { SectionLabel } from "@/components/layout/SectionLabel";
 
 const protocolStats = [
   { label: "ROLLUP SLOT", value: "18,402,771", detail: "+84 / SEC", icon: Blocks, tone: "emerald" },
-  { label: "ACTIVE ESCROW", value: "34,515.50", detail: "USDC LOCKED", icon: LockKeyhole, tone: "amber" },
+  { label: "ACTIVE ESCROW", value: "3,450.00", detail: "SOL LOCKED", icon: LockKeyhole, tone: "amber" },
   { label: "SETTLEMENT RATE", value: "98.7%", detail: "LAST 30 DAYS", icon: ShieldCheck, tone: "default" },
   { label: "INDEXER STATUS", value: "NOMINAL", detail: "184MS LATENCY", icon: Database, tone: "default" },
 ];

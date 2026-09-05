@@ -1,23 +1,102 @@
 import { gigs } from "@/lib/flint-data";
-import { ArrowUpRight, Filter, Plus, ExternalLink } from "lucide-react";
+import { ArrowUpRight, Filter, Plus, ExternalLink, CheckCircle2, Loader2 } from "lucide-react";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { SectionLabel } from "@/components/layout/SectionLabel";
 import { PostGigModal } from "./PostGigModal";
-import { useState } from "react";
-import { EscrowTxResult } from "@/lib/flint-escrow-client";
+import { SubmitWorkModal } from "./SubmitWorkModal";
+import { useState, useEffect } from "react";
+import { EscrowTxResult, settleEscrowOnChain } from "@/lib/flint-escrow-client";
+import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
+import { PublicKey } from "@solana/web3.js";
 
 export function GigExchange() {
-  const { connected, setIsModalOpen } = useFlintWallet();
+  const { connected, walletAddress, setIsModalOpen } = useFlintWallet();
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [selectedGigForSubmission, setSelectedGigForSubmission] = useState<any | null>(null);
   const [gigList, setGigList] = useState(gigs);
+  const [loadingOnChain, setLoadingOnChain] = useState(false);
+  const [settlingGigId, setSettlingGigId] = useState<string | null>(null);
 
-  const handleInteract = (action: string, gigPda?: string) => {
-    if (!connected) return setIsModalOpen(true);
-    if (gigPda) {
-      window.open(`https://explorer.solana.com/address/${gigPda}?cluster=devnet`, "_blank");
-    } else {
-      alert(`Connected to Escrow Program (2PQbtiG...KQD6h)\nAction: ${action}`);
+  // Filter state
+  const [filterModel, setFilterModel] = useState("ALL");
+  const [filterLane, setFilterLane] = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+
+  // Fetch live on-chain gigs from Solana Devnet on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveGigs() {
+      setLoadingOnChain(true);
+      try {
+        const onChainGigs = await fetchOnChainGigs();
+        if (isMounted && onChainGigs.length > 0) {
+          // Merge on-chain gigs with the initial showcase gigs (avoiding duplicate IDs)
+          setGigList((prev) => {
+            const existingIds = new Set(onChainGigs.map((g) => g.id));
+            const filteredMock = prev.filter((g) => !existingIds.has(g.id) && !g.id.startsWith("GIG-"));
+            return [...onChainGigs, ...filteredMock];
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to load on-chain gigs:", err);
+      } finally {
+        if (isMounted) setLoadingOnChain(false);
+      }
     }
+    loadLiveGigs();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleInteract = (action: string, gig: any) => {
+    if (!connected) return setIsModalOpen(true);
+    if (action === "submit") {
+      setSelectedGigForSubmission(gig);
+    } else if (action === "view_escrow") {
+      const url = gig.pda
+        ? `https://explorer.solana.com/address/${gig.pda}?cluster=devnet`
+        : `https://explorer.solana.com/address/2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h?cluster=devnet`;
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleSettle = async (gig: any) => {
+    if (!connected || !walletAddress) return setIsModalOpen(true);
+    if (!gig.pda) return alert("This mock gig does not have an on-chain PDA.");
+
+    try {
+      setSettlingGigId(gig.id);
+      const win = window as any;
+      const provider = win.phantom?.solana || win.solflare || win.solana;
+      if (!provider) throw new Error("No Solana browser wallet detected.");
+
+      const freelancerTarget = gig.freelancer || walletAddress;
+      const txSig = await settleEscrowOnChain(
+        gig.pda,
+        freelancerTarget,
+        new PublicKey(walletAddress),
+        provider
+      );
+
+      alert(`Escrow settled successfully on Devnet!\nTx: ${txSig}`);
+      // Mark as Completed/Funded locally
+      setGigList((prev) =>
+        prev.map((g) => (g.id === gig.id ? { ...g, status: "Funded" as const } : g))
+      );
+    } catch (err: any) {
+      console.error("Settlement error:", err);
+      alert(`Settlement failed: ${err?.message || "Transaction rejected"}`);
+    } finally {
+      setSettlingGigId(null);
+    }
+  };
+
+  const handleWorkSubmitted = (gigId: string, _url: string) => {
+    setGigList((prev) =>
+      prev.map((g) => (g.id === gigId ? { ...g, status: "Reviewing" as const, submissions: (g.submissions || 0) + 1 } : g))
+    );
+    setSelectedGigForSubmission(null);
   };
 
   const handleGigCreated = (result: EscrowTxResult, gigData: any) => {
@@ -32,10 +111,19 @@ export function GigExchange() {
       submissions: 0,
       pda: result.gigEscrowPda,
       vault: result.vaultPda,
+      client: walletAddress,
       txSignature: result.txSignature,
     };
     setGigList((prev) => [newGig, ...prev]);
   };
+
+  const filteredGigs = gigList.filter((g) => {
+    if (filterModel === "BOUNTY" && !g.verification.includes("COMMIT")) return false;
+    if (filterModel === "CONTEST" && !g.verification.includes("CONTEST")) return false;
+    if (filterLane !== "ALL" && g.lane !== filterLane) return false;
+    if (filterStatus !== "ALL" && g.status !== filterStatus) return false;
+    return true;
+  });
 
   return (
     <section className="workspace-section prediction-workspace" id="gigs" aria-labelledby="gig-title">
@@ -60,38 +148,59 @@ export function GigExchange() {
       <div className="prediction-layout">
         <div className="market-book">
           <div className="panel-title-row">
-            <span className="metric-label">LIVE GIGS</span>
+            <span className="metric-label">
+              LIVE GIGS {loadingOnChain && <Loader2 size={11} className="animate-spin inline ml-1 text-amber-500" />}
+            </span>
             <span className="mono">BUDGET / STATUS</span>
           </div>
-          {gigList.map((gig: any) => (
-            <article className="market-book-row" key={gig.id}>
-              <div className="market-book-main">
-                <span className="mono market-book-id">
-                  {gig.id} {gig.pda && <span style={{ color: "#10b981", fontSize: "0.65rem" }}>● ON-CHAIN</span>}
-                </span>
-                <h3>{gig.title}</h3>
-                <span className="mono market-book-meta">
-                  {gig.lane} · {gig.verification} · CLOSES {gig.deadline}
-                </span>
-              </div>
-              <div className="market-book-prob">
-                <span className="metric-label">BUDGET</span>
-                <strong className="mono">{gig.budget}</strong>
-                <span className="market-trend">{gig.submissions} SUBMISSIONS</span>
-              </div>
-              <div className="market-book-actions">
-                {gig.status === "Accepting" ? (
-                  <button className="amber-button" onClick={() => handleInteract("submit", gig.pda)}>
-                    SUBMIT WORK
-                  </button>
-                ) : (
-                  <button className="outline-button" onClick={() => handleInteract("view_escrow", gig.pda)}>
-                    VIEW ESCROW
-                  </button>
-                )}
-              </div>
-            </article>
-          ))}
+          {filteredGigs.map((gig: any) => {
+            const isCreator = connected && walletAddress && gig.client === walletAddress;
+            const isReviewing = gig.status === "Reviewing";
+
+            return (
+              <article className="market-book-row" key={gig.id}>
+                <div className="market-book-main">
+                  <span className="mono market-book-id">
+                    {gig.id} {gig.pda && <span style={{ color: "#10b981", fontSize: "0.65rem" }}>● ON-CHAIN</span>}
+                  </span>
+                  <h3>{gig.title}</h3>
+                  <span className="mono market-book-meta">
+                    {gig.lane} · {gig.verification} · CLOSES {gig.deadline}
+                  </span>
+                </div>
+                <div className="market-book-prob">
+                  <span className="metric-label">BUDGET</span>
+                  <strong className="mono">{gig.budget}</strong>
+                  <span className="market-trend">{gig.submissions} SUBMISSIONS</span>
+                </div>
+                <div className="market-book-actions">
+                  {gig.status === "Accepting" && (
+                    <button className="amber-button" onClick={() => handleInteract("submit", gig)}>
+                      SUBMIT WORK
+                    </button>
+                  )}
+                  {isReviewing && isCreator && (
+                    <button
+                      className="emerald-button mono"
+                      style={{ background: "#10b981", color: "#000", fontWeight: 700, padding: "6px 12px", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "0.75rem" }}
+                      disabled={settlingGigId === gig.id}
+                      onClick={() => handleSettle(gig)}
+                    >
+                      {settlingGigId === gig.id ? "RELEASING..." : "APPROVE & RELEASE"}
+                    </button>
+                  )}
+                  {isReviewing && !isCreator && (
+                    <span className="mono" style={{ color: "#FF6B00", fontSize: "0.75rem" }}>IN REVIEW</span>
+                  )}
+                  {gig.status === "Funded" && (
+                    <button className="outline-button" onClick={() => handleInteract("view_escrow", gig)}>
+                      VIEW SETTLED <ExternalLink size={12} />
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
 
         <aside className="positions-panel">
@@ -102,37 +211,43 @@ export function GigExchange() {
           <div className="balance-ledger">
             <div style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '8px' }}>
               <span style={{ color: '#e5e5e5' }}>Settlement Model</span>
-              <select className="mono" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}>
-                <option>ALL MODELS</option>
-                <option>BOUNTY (First Valid)</option>
-                <option>CONTEST (Best Wins)</option>
+              <select 
+                className="mono" 
+                value={filterModel}
+                onChange={(e) => setFilterModel(e.target.value)}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}
+              >
+                <option value="ALL">ALL MODELS</option>
+                <option value="BOUNTY">BOUNTY (First Valid)</option>
+                <option value="CONTEST">CONTEST (Best Wins)</option>
               </select>
             </div>
             <div style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '8px' }}>
               <span style={{ color: '#e5e5e5' }}>Lane</span>
-              <select className="mono" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}>
-                <option>ALL LANES</option>
-                <option>Human → Agent</option>
-                <option>Agent → Agent</option>
-                <option>Human → Human</option>
-              </select>
-            </div>
-            <div style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '8px' }}>
-              <span style={{ color: '#e5e5e5' }}>Verification</span>
-              <select className="mono" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}>
-                <option>ANY REQUIRED</option>
-                <option>GITHUB + WALLET</option>
-                <option>SBT ATTESTED</option>
-                <option>ESCROW READY</option>
+              <select 
+                className="mono" 
+                value={filterLane}
+                onChange={(e) => setFilterLane(e.target.value)}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}
+              >
+                <option value="ALL">ALL LANES</option>
+                <option value="Human → Agent">Human → Agent</option>
+                <option value="Agent → Agent">Agent → Agent</option>
+                <option value="Human → Human">Human → Human</option>
               </select>
             </div>
             <div style={{ paddingBottom: '12px' }}>
               <span style={{ color: '#e5e5e5' }}>Status</span>
-              <select className="mono" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}>
-                <option>ALL STATUS</option>
-                <option>Accepting</option>
-                <option>Reviewing</option>
-                <option>Funded</option>
+              <select 
+                className="mono" 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}
+              >
+                <option value="ALL">ALL STATUS</option>
+                <option value="Accepting">Accepting</option>
+                <option value="Reviewing">Reviewing</option>
+                <option value="Funded">Settled</option>
               </select>
             </div>
           </div>
@@ -143,6 +258,13 @@ export function GigExchange() {
         isOpen={isPostModalOpen} 
         onClose={() => setIsPostModalOpen(false)} 
         onSuccess={handleGigCreated} 
+      />
+
+      <SubmitWorkModal
+        isOpen={Boolean(selectedGigForSubmission)}
+        gig={selectedGigForSubmission}
+        onClose={() => setSelectedGigForSubmission(null)}
+        onSuccess={handleWorkSubmitted}
       />
     </section>
   );

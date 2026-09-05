@@ -67,7 +67,7 @@ export function MarketCard({ market, featured = false }: MarketCardProps) {
       <div className="market-card-footer">
         <div className="market-detail">
           <span className="metric-label">LIQUIDITY</span>
-          <span className="mono">{market.volume} USDC</span>
+          <span className="mono">{market.volume} SOL</span>
         </div>
         <div className="market-detail market-detail-right">
           <Clock3 size={13} />

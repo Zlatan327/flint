@@ -60,6 +60,16 @@ pub mod flint_market {
         require!(!market.is_resolved, MarketError::MarketAlreadyResolved);
         require!(amount > 0, MarketError::InvalidAmount);
 
+        // Transfer funds from trader to market vault PDA
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.trader.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_context, amount)?;
+
         // Update pools
         if is_yes {
             market.yes_pool = market.yes_pool.saturating_add(amount);
@@ -74,8 +84,9 @@ pub mod flint_market {
         position.market = market.key();
 
         msg!(
-            "Flint Market #{}: Private order executed in PER (Encrypted Proof Verified). Total Volume: {}",
+            "Flint Market #{}: Order executed. {} lamports locked in vault. Total Volume: {}",
             market.market_id,
+            amount,
             market.total_volume
         );
         Ok(())
@@ -102,7 +113,7 @@ pub mod flint_market {
         Ok(())
     }
 
-    /// Claims winnings from the market pool
+    /// Claims winnings from the market pool and transfers lamports to trader
     pub fn claim_payout(ctx: Context<ClaimPayout>) -> Result<()> {
         let market = &ctx.accounts.market;
         let position = &mut ctx.accounts.position;
@@ -136,7 +147,21 @@ pub mod flint_market {
             position.no_shares = 0;
         }
 
-        msg!("Flint Market: Trader claimed {} lamports in payout", payout);
+        // Disburse earned lamports from market vault to trader
+        if payout > 0 {
+            **ctx.accounts.vault.try_borrow_mut_lamports()? = ctx
+                .accounts
+                .vault
+                .lamports()
+                .saturating_sub(payout);
+            **ctx.accounts.trader.try_borrow_mut_lamports()? = ctx
+                .accounts
+                .trader
+                .lamports()
+                .saturating_add(payout);
+        }
+
+        msg!("Flint Market: Trader claimed {} lamports from vault", payout);
         Ok(())
     }
 }
@@ -169,6 +194,13 @@ pub struct PlaceOrder<'info> {
     #[account(mut)]
     pub market: Account<'info, MilestoneMarket>,
     #[account(
+        mut,
+        seeds = [b"vault", market.key().as_ref()],
+        bump
+    )]
+    /// CHECK: Vault holding escrowed prediction market bets
+    pub vault: AccountInfo<'info>,
+    #[account(
         init_if_needed,
         payer = trader,
         space = 8 + TraderPosition::LEN,
@@ -191,6 +223,13 @@ pub struct ResolveMarket<'info> {
 #[derive(Accounts)]
 pub struct ClaimPayout<'info> {
     pub market: Account<'info, MilestoneMarket>,
+    #[account(
+        mut,
+        seeds = [b"vault", market.key().as_ref()],
+        bump
+    )]
+    /// CHECK: Vault dispersing payout funds
+    pub vault: AccountInfo<'info>,
     #[account(
         mut,
         has_one = market,

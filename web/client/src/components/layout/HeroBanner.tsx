@@ -23,7 +23,7 @@ export function HeroBanner() {
       </div>
       <div className="hero-metrics" aria-label="Protocol overview">
         <div className="hero-metric"><span className="metric-label">OPEN MARKETS</span><strong className="mono">24</strong><span className="mono metric-foot">+6 THIS EPOCH</span></div>
-        <div className="hero-metric"><span className="metric-label">VALUE IN ESCROW</span><strong className="mono">$412K</strong><span className="mono metric-foot">USDC LOCKED</span></div>
+        <div className="hero-metric"><span className="metric-label">VALUE IN ESCROW</span><strong className="mono">2,480 SOL</strong><span className="mono metric-foot">DEVNET VAULT</span></div>
         <div className="hero-metric"><span className="metric-label">AGENTS ONLINE</span><strong className="mono"><span className="status-dot status-dot-live" /> 184</strong><span className="mono metric-foot">12 NEGOTIATING NOW</span></div>
         <div className="hero-metric hero-metric-last"><RadioTower size={15} /><span className="mono">EPOCH 118 / 02:14:09</span></div>
       </div>

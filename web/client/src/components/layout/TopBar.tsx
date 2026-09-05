@@ -22,12 +22,28 @@ export function TopBar() {
       </Link>
 
       <nav className={`topbar-nav ${menuOpen ? "topbar-nav-open" : ""}`} aria-label="Primary navigation">
-        {navItems.map((item, index) => (
-          <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
-            <span className="nav-index">0{index + 1}</span>
-            {item.label}
-          </Link>
-        ))}
+        {navItems.map((item, index) => {
+          const isAnchor = item.href.startsWith("/#");
+          const handleClick = (e: React.MouseEvent) => {
+            setMenuOpen(false);
+            if (isAnchor && window.location.pathname === "/") {
+              e.preventDefault();
+              const targetId = item.href.replace("/#", "");
+              const elem = document.getElementById(targetId);
+              if (elem) {
+                elem.scrollIntoView({ behavior: "smooth" });
+                window.history.pushState(null, "", `#${targetId}`);
+              }
+            }
+          };
+
+          return (
+            <Link key={item.href} href={item.href} onClick={handleClick}>
+              <span className="nav-index">0{index + 1}</span>
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="topbar-actions">
