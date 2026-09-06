@@ -57,8 +57,8 @@ export function ProtocolStrip() {
     },
     {
       label: "ACTIVE ESCROW",
-      value: activeEscrowSol !== null ? `${activeEscrowSol.toFixed(2)}` : "...",
-      detail: "SOL LOCKED IN VAULTS",
+      value: activeEscrowSol !== null ? `${activeEscrowSol.toFixed(2)} SOL` : "...",
+      detail: "LOCKED IN VAULTS",
       icon: LockKeyhole,
       tone: "amber",
     },
@@ -89,48 +89,48 @@ export function ProtocolStrip() {
           <div className="protocol-stat" key={label}>
             <div className={`protocol-icon protocol-icon-${tone}`}><Icon size={15} /></div>
             <span className="metric-label">{label}</span>
-            <strong className="mono">{value}</strong>
+            <strong className="mono" title={value}>{value}</strong>
             <span className="mono protocol-detail">{detail}</span>
           </div>
         ))}
       </div>
 
-      <div style={{ gridColumn: "1 / -1", marginTop: "1rem", padding: "1.25rem", border: "1px solid rgba(255,255,255,0.09)", background: "rgba(10, 12, 16, 0.6)", borderRadius: "8px", boxSizing: "border-box", width: "100%" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+      <div style={{ gridColumn: "1 / -1", marginTop: "1rem", padding: "1.1rem 1.25rem", border: "1px solid rgba(255,255,255,0.08)", background: "#0c0c0c", boxSizing: "border-box", width: "100%" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", marginBottom: "0.85rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
             <span className="mono" style={{ fontSize: "0.75rem", color: "#10b981", letterSpacing: "0.06em", fontWeight: 700 }}>
               SOLANA DEVNET LIVE CONTRACTS & TREASURY
             </span>
           </div>
-          <span className="mono" style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: "4px" }}>
+          <span className="mono" style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.05)", padding: "2px 8px" }}>
             CLUSTER: DEVNET-L1
           </span>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.75rem", width: "100%", boxSizing: "border-box" }}>
-          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
+          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em" }}>ESCROW & DELEGATION</span>
             <a href="https://explorer.solana.com/address/2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h?cluster=devnet" target="_blank" rel="noreferrer" className="mono" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               2PQbtiG8...KQD6h ↗
             </a>
           </div>
 
-          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
+          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em" }}>PREDICTION MARKET</span>
             <a href="https://explorer.solana.com/address/95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3?cluster=devnet" target="_blank" rel="noreferrer" className="mono" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               95ZEnzPd...RgJ7e3 ↗
             </a>
           </div>
 
-          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
+          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em" }}>SBT REPUTATION REGISTRY</span>
             <a href="https://explorer.solana.com/address/J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg?cluster=devnet" target="_blank" rel="noreferrer" className="mono" style={{ color: "#38bdf8", textDecoration: "none", fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               J6JQJBVY...8AAWg ↗
             </a>
           </div>
 
-          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
+          <div style={{ background: "rgba(255,255,255,0.02)", padding: "0.75rem 1rem", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em" }}>PROTOCOL TREASURY</span>
             <a href={`https://explorer.solana.com/address/${PROTOCOL_TREASURY_PDA.toBase58()}?cluster=devnet`} target="_blank" rel="noreferrer" className="mono" style={{ color: "#FF6B00", textDecoration: "none", fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {PROTOCOL_TREASURY_PDA.toBase58().slice(0, 8)}... (1.5% Rake) ↗
