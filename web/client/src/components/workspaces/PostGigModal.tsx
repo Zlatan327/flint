@@ -239,12 +239,13 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                   disabled={loading}
                   onChange={(e) => setModel(e.target.value as any)}
                   style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "#0a0c10",
+                    border: "1px solid rgba(255,255,255,0.15)",
                     color: "#fff",
                     padding: "0.6rem",
                     borderRadius: "6px",
                     outline: "none",
+                    colorScheme: "dark",
                   }}
                   className="mono"
                 >
@@ -268,12 +269,13 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                     disabled={loading}
                     onChange={(e) => setCategory(e.target.value as any)}
                     style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "#0a0c10",
+                      border: "1px solid rgba(255,255,255,0.15)",
                       color: "#fff",
                       padding: "0.6rem",
                       borderRadius: "6px",
                       outline: "none",
+                      colorScheme: "dark",
                     }}
                     className="mono"
                   >
@@ -298,12 +300,13 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                     disabled={loading}
                     onChange={(e) => setLane(e.target.value)}
                     style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "#0a0c10",
+                      border: "1px solid rgba(255,255,255,0.15)",
                       color: "#fff",
                       padding: "0.6rem",
                       borderRadius: "6px",
                       outline: "none",
+                      colorScheme: "dark",
                     }}
                     className="mono"
                   >

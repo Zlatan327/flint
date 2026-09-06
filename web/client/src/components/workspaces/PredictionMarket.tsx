@@ -548,6 +548,7 @@ export function PredictionMarket() {
                       fontFamily: "monospace",
                       marginBottom: "6px",
                       fontSize: "0.78rem",
+                      colorScheme: "dark",
                     }}
                   >
                     <option value="">-- Select active on-chain gig --</option>
@@ -578,7 +579,7 @@ export function PredictionMarket() {
                 <select
                   value={newMarketType}
                   onChange={(e) => setNewMarketType(Number(e.target.value) as 0 | 1 | 2)}
-                  style={{ width: "100%", padding: "8px 12px", background: "#0a0c10", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", color: "#fff", fontFamily: "monospace" }}
+                  style={{ width: "100%", padding: "8px 12px", background: "#0a0c10", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", color: "#fff", fontFamily: "monospace", colorScheme: "dark" }}
                 >
                   <option value={0}>VELOCITY / TIME (Will deliver on time?)</option>
                   <option value={1}>QUALITY BENCHMARK (Will pass criteria?)</option>

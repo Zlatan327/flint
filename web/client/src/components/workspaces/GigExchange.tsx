@@ -334,7 +334,7 @@ export function GigExchange() {
                 className="mono" 
                 value={filterDomain}
                 onChange={(e) => setFilterDomain(e.target.value)}
-                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}
+                style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', padding: '4px 6px', width: '100%', marginTop: '4px', borderRadius: '4px', colorScheme: 'dark' }}
               >
                 <option value="ALL">ALL DISCIPLINES</option>
                 <option value="ENGINEERING">💻 ENGINEERING</option>
@@ -354,7 +354,7 @@ export function GigExchange() {
                 className="mono" 
                 value={filterModel}
                 onChange={(e) => setFilterModel(e.target.value)}
-                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}
+                style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', padding: '4px 6px', width: '100%', marginTop: '4px', borderRadius: '4px', colorScheme: 'dark' }}
               >
                 <option value="ALL">ALL MODELS</option>
                 <option value="BOUNTY">BOUNTY (First Valid)</option>
@@ -367,7 +367,7 @@ export function GigExchange() {
                 className="mono" 
                 value={filterLane}
                 onChange={(e) => setFilterLane(e.target.value)}
-                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}
+                style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', padding: '4px 6px', width: '100%', marginTop: '4px', borderRadius: '4px', colorScheme: 'dark' }}
               >
                 <option value="ALL">ALL LANES</option>
                 <option value="Human → Agent">Human → Agent</option>
@@ -381,7 +381,7 @@ export function GigExchange() {
                 className="mono" 
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '2px 4px', width: '100%', marginTop: '4px' }}
+                style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', padding: '4px 6px', width: '100%', marginTop: '4px', borderRadius: '4px', colorScheme: 'dark' }}
               >
                 <option value="ALL">ALL STATUS</option>
                 <option value="Accepting">Accepting</option>
