@@ -1,8 +1,16 @@
-import { ArrowUpRight, BarChart3, Radio, CheckCircle2, Loader2, ExternalLink, Plus, AlertCircle, TrendingUp, X } from "lucide-react";
+import { ArrowUpRight, BarChart3, Radio, CheckCircle2, Loader2, ExternalLink, Plus, AlertCircle, TrendingUp, X, ShieldCheck, Award, Sparkles, Clock } from "lucide-react";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { SectionLabel } from "@/components/layout/SectionLabel";
 import { useState, useEffect } from "react";
-import { placeMarketOrderOnChain, fetchOnChainMarkets, fetchUserTraderPositions, createMarketOnChain } from "@/lib/flint-market-client";
+import {
+  placeMarketOrderOnChain,
+  fetchOnChainMarkets,
+  fetchUserTraderPositions,
+  createMarketOnChain,
+  resolveMarketOnChain,
+  claimMarketPayoutOnChain,
+} from "@/lib/flint-market-client";
+import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
 import { PublicKey } from "@solana/web3.js";
 
 export function PredictionMarket() {
@@ -16,6 +24,12 @@ export function PredictionMarket() {
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
   const [lastTxUrl, setLastTxUrl] = useState<string | null>(null);
 
+  // Dynamic stake sizing
+  const [stakeAmountSol, setStakeAmountSol] = useState<number>(0.1);
+  const [resolvingMarketId, setResolvingMarketId] = useState<string | null>(null);
+  const [claimingPda, setClaimingPda] = useState<string | null>(null);
+  const [availableGigs, setAvailableGigs] = useState<any[]>([]);
+
   // Create market modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newMarketGigId, setNewMarketGigId] = useState("");
@@ -26,8 +40,12 @@ export function PredictionMarket() {
   const loadData = async () => {
     setLoadingMarkets(true);
     try {
-      const onChainMarkets = await fetchOnChainMarkets();
+      const [onChainMarkets, gigs] = await Promise.all([
+        fetchOnChainMarkets().catch(() => []),
+        fetchOnChainGigs().catch(() => []),
+      ]);
       setMarketList(onChainMarkets);
+      setAvailableGigs(gigs);
 
       if (connected && walletAddress) {
         const userPositions = await fetchUserTraderPositions(new PublicKey(walletAddress));
@@ -49,21 +67,26 @@ export function PredictionMarket() {
   const handleTrade = async (market: any, isYes: boolean) => {
     if (!connected || !walletAddress) return setIsModalOpen(true);
 
+    if (balance !== null && balance < stakeAmountSol) {
+      alert(`Insufficient balance: you have ${balance.toFixed(3)} SOL, but selected stake is ${stakeAmountSol} SOL.`);
+      return;
+    }
+
     try {
       setTradingMarketId(market.id);
-      setTradeStatus(`Signing ${isYes ? "YES" : "NO"} order on Devnet...`);
+      setTradeStatus(`Signing ${isYes ? "YES" : "NO"} order (${stakeAmountSol} SOL) on Devnet...`);
       setLastTxUrl(null);
 
       const win = window as any;
-      const provider = win.phantom?.solana || win.solflare || win.solana;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
       if (!provider) throw new Error("No Solana browser wallet detected.");
 
-      const rawId = parseInt(market.id, 10) || 1;
+      const rawId = parseInt(market.marketId ?? market.id, 10) || 1;
       const result = await placeMarketOrderOnChain(
         {
           marketId: rawId,
           isYes,
-          amountSol: 0.01,
+          amountSol: stakeAmountSol,
           traderPubkey: new PublicKey(walletAddress),
         },
         provider
@@ -80,13 +103,68 @@ export function PredictionMarket() {
     }
   };
 
+  const handleResolveMarket = async (market: any, outcomeIsYes: boolean) => {
+    if (!connected || !walletAddress) return setIsModalOpen(true);
+
+    try {
+      setResolvingMarketId(market.id);
+      setLastTxUrl(null);
+
+      const win = window as any;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
+      if (!provider) throw new Error("No Solana browser wallet detected.");
+
+      const sig = await resolveMarketOnChain(
+        market.pda,
+        outcomeIsYes,
+        new PublicKey(walletAddress),
+        provider
+      );
+
+      setLastTxUrl(`https://explorer.solana.com/tx/${sig}?cluster=devnet`);
+      await loadData();
+    } catch (err: any) {
+      console.error("Resolution failed:", err);
+      alert(`Market resolution failed: ${err?.message || "Transaction rejected"}`);
+    } finally {
+      setResolvingMarketId(null);
+    }
+  };
+
+  const handleClaimPayout = async (position: any) => {
+    if (!connected || !walletAddress) return setIsModalOpen(true);
+
+    try {
+      setClaimingPda(position.pda);
+      setLastTxUrl(null);
+
+      const win = window as any;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
+      if (!provider) throw new Error("No Solana browser wallet detected.");
+
+      const sig = await claimMarketPayoutOnChain(
+        position.marketPda,
+        new PublicKey(walletAddress),
+        provider
+      );
+
+      setLastTxUrl(`https://explorer.solana.com/tx/${sig}?cluster=devnet`);
+      await loadData();
+    } catch (err: any) {
+      console.error("Claim payout failed:", err);
+      alert(`Claim payout failed: ${err?.message || "Transaction rejected"}`);
+    } finally {
+      setClaimingPda(null);
+    }
+  };
+
   const handleCreateMarket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!connected || !walletAddress) return setIsModalOpen(true);
 
     const gigNum = parseInt(newMarketGigId.replace(/[^0-9]/g, ""), 10);
     if (!gigNum) {
-      setCreateError("Please enter a valid numeric Gig ID (e.g. 499857 or 204).");
+      setCreateError("Please select or enter a valid numeric Gig ID (e.g. 499857 or 204).");
       return;
     }
 
@@ -95,7 +173,7 @@ export function PredictionMarket() {
 
     try {
       const win = window as any;
-      const provider = win.phantom?.solana || win.solflare || win.solana;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
       if (!provider) throw new Error("No Solana browser wallet detected.");
 
       // Random unique market ID or gigId based
@@ -171,6 +249,37 @@ export function PredictionMarket() {
             <span className="mono">SORT / LIQUIDITY</span>
           </div>
 
+          {/* Quick Stake Sizing Bar */}
+          <div style={{ padding: "8px 14px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span className="mono" style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)" }}>STAKE SIZE:</span>
+              {[0.05, 0.1, 0.5, 1.0].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => setStakeAmountSol(amt)}
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontSize: "0.7rem",
+                    fontFamily: "monospace",
+                    background: stakeAmountSol === amt ? "#FF6B00" : "rgba(255,255,255,0.05)",
+                    color: stakeAmountSol === amt ? "#000" : "rgba(255,255,255,0.8)",
+                    fontWeight: stakeAmountSol === amt ? 700 : 500,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {amt} SOL
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }} className="mono">
+              <Sparkles size={12} color="#10b981" />
+              <span style={{ fontSize: "0.68rem", color: "#10b981" }}>SBT DISCOUNT: 0.50% RAKE (50 BPS OFF)</span>
+            </div>
+          </div>
+
           {loadingMarkets ? (
             <div style={{ padding: "3rem 1.5rem", textAlign: "center", color: "rgba(255,255,255,0.5)" }} className="mono">
               <Loader2 size={24} className="animate-spin inline mr-2 text-amber-500" />
@@ -207,38 +316,103 @@ export function PredictionMarket() {
               </button>
             </div>
           ) : (
-            marketList.map((market) => (
-              <article className="market-book-row" key={market.id}>
-                <div className="market-book-main">
-                  <span className="mono market-book-id">MKT-{market.id}</span>
-                  <h3>{market.title}</h3>
-                  <span className="mono market-book-meta">{market.category} · CLOSES {market.expiry}</span>
-                </div>
-                <div className="market-book-prob">
-                  <span className="metric-label">YES</span>
-                  <strong className="mono">{market.probability}%</strong>
-                  <span className="market-trend"><ArrowUpRight size={12} /> {market.change}</span>
-                </div>
-                <div className="market-book-actions">
-                  <button 
-                    className="yes-button" 
-                    type="button" 
-                    disabled={tradingMarketId === market.id}
-                    onClick={() => handleTrade(market, true)}
-                  >
-                    {tradingMarketId === market.id ? <Loader2 size={12} className="animate-spin" /> : "BUY YES (0.01 SOL)"}
-                  </button>
-                  <button 
-                    className="no-button" 
-                    type="button" 
-                    disabled={tradingMarketId === market.id}
-                    onClick={() => handleTrade(market, false)}
-                  >
-                    {tradingMarketId === market.id ? <Loader2 size={12} className="animate-spin" /> : "BUY NO (0.01 SOL)"}
-                  </button>
-                </div>
-              </article>
-            ))
+            marketList.map((market) => {
+              const isAuthority = Boolean(
+                connected &&
+                walletAddress &&
+                market.authority &&
+                walletAddress.toLowerCase() === market.authority.toLowerCase()
+              );
+
+              return (
+                <article className="market-book-row" key={market.id}>
+                  <div className="market-book-main">
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                      <span className="mono market-book-id">MKT-{market.id}</span>
+                      {market.isResolved && (
+                        <span
+                          className="mono"
+                          style={{
+                            fontSize: "0.65rem",
+                            padding: "1px 6px",
+                            borderRadius: "3px",
+                            background: market.winningOutcome ? "rgba(16, 185, 129, 0.15)" : "rgba(244, 63, 94, 0.15)",
+                            color: market.winningOutcome ? "#10b981" : "#f43f5e",
+                            border: `1px solid ${market.winningOutcome ? "rgba(16, 185, 129, 0.3)" : "rgba(244, 63, 94, 0.3)"}`,
+                            fontWeight: 700,
+                          }}
+                        >
+                          SETTLED: {market.winningOutcome ? "YES (DELIVERED)" : "NO (FAILED)"}
+                        </span>
+                      )}
+                      {isAuthority && !market.isResolved && (
+                        <span className="mono" style={{ fontSize: "0.62rem", padding: "1px 5px", background: "rgba(255, 107, 0, 0.15)", color: "#FF6B00", borderRadius: "3px" }}>
+                          YOUR MARKET
+                        </span>
+                      )}
+                    </div>
+                    <h3>{market.title}</h3>
+                    <span className="mono market-book-meta">
+                      {market.category} · {market.isResolved ? "SETTLED ON-CHAIN" : `CLOSES ${market.expiry}`}
+                    </span>
+                  </div>
+
+                  <div className="market-book-prob">
+                    <span className="metric-label">YES</span>
+                    <strong className="mono">{market.probability}%</strong>
+                    <span className="market-trend"><ArrowUpRight size={12} /> {market.change}</span>
+                  </div>
+
+                  <div className="market-book-actions" style={{ flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                    {market.isResolved ? (
+                      <span className="mono" style={{ fontSize: "0.72rem", color: market.winningOutcome ? "#10b981" : "#f43f5e", fontWeight: 600 }}>
+                        {market.winningOutcome ? "OUTCOME: YES" : "OUTCOME: NO"}
+                      </span>
+                    ) : isAuthority ? (
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <button 
+                          className="yes-button" 
+                          type="button" 
+                          disabled={resolvingMarketId === market.id}
+                          onClick={() => handleResolveMarket(market, true)}
+                          style={{ fontSize: "0.7rem", padding: "5px 10px" }}
+                        >
+                          {resolvingMarketId === market.id ? <Loader2 size={11} className="animate-spin" /> : "RESOLVE YES"}
+                        </button>
+                        <button 
+                          className="no-button" 
+                          type="button" 
+                          disabled={resolvingMarketId === market.id}
+                          onClick={() => handleResolveMarket(market, false)}
+                          style={{ fontSize: "0.7rem", padding: "5px 10px" }}
+                        >
+                          {resolvingMarketId === market.id ? <Loader2 size={11} className="animate-spin" /> : "RESOLVE NO"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button 
+                          className="yes-button" 
+                          type="button" 
+                          disabled={tradingMarketId === market.id}
+                          onClick={() => handleTrade(market, true)}
+                        >
+                          {tradingMarketId === market.id ? <Loader2 size={12} className="animate-spin" /> : `BUY YES (${stakeAmountSol} SOL)`}
+                        </button>
+                        <button 
+                          className="no-button" 
+                          type="button" 
+                          disabled={tradingMarketId === market.id}
+                          onClick={() => handleTrade(market, false)}
+                        >
+                          {tradingMarketId === market.id ? <Loader2 size={12} className="animate-spin" /> : `BUY NO (${stakeAmountSol} SOL)`}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })
           )}
         </div>
 
@@ -261,24 +435,55 @@ export function PredictionMarket() {
               No open positions. Trade YES or NO on a market to underwrite delivery risk.
             </div>
           ) : (
-            positionList.map((position, idx) => (
-              <div className="position-row" key={`${position.marketId}-${idx}`}>
-                <div>
-                  <span className="mono">{position.marketId} / {position.side}</span>
-                  <strong className="mono">{position.stake}</strong>
+            positionList.map((position, idx) => {
+              const matchingMarket = marketList.find((m) => m.pda === position.marketPda);
+              const isSettled = matchingMarket?.isResolved;
+              const isWinner = isSettled && matchingMarket.winningOutcome === (position.side === "YES");
+
+              return (
+                <div className="position-row" key={`${position.marketId}-${idx}`} style={{ flexDirection: "column", alignItems: "stretch", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span className="mono">{position.marketId} / {position.side}</span>
+                    <strong className="mono">{position.stake}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="position-return">
+                      <span className="mono">{position.returnValue}</span>
+                      <small className="mono"><ArrowUpRight size={11} /> {position.move}</small>
+                    </div>
+                    {isWinner && (
+                      <button
+                        type="button"
+                        disabled={claimingPda === position.pda}
+                        onClick={() => handleClaimPayout(position)}
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: "4px",
+                          background: "#10b981",
+                          color: "#000",
+                          fontWeight: 700,
+                          fontSize: "0.7rem",
+                          border: "none",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                        className="mono"
+                      >
+                        {claimingPda === position.pda ? <Loader2 size={11} className="animate-spin" /> : "CLAIM PAYOUT"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="position-return">
-                  <span className="mono">{position.returnValue}</span>
-                  <small className="mono"><ArrowUpRight size={11} /> {position.move}</small>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
 
           <div className="balance-ledger">
             <div><span>AVAILABLE</span><strong className="mono">{displayBalance}</strong></div>
             <div><span>TOTAL IN MARKETS</span><strong className="mono">{totalUserStakeSol.toFixed(3)} SOL</strong></div>
-            <div><span>PROTOCOL RAKE</span><strong className="mono" style={{ color: "#FF6B00" }}>1.00% ON CLAIMS</strong></div>
+            <div><span>PROTOCOL RAKE</span><strong className="mono" style={{ color: "#10b981" }}>0.50% (SBT DISCOUNT)</strong></div>
             <div><span>NETWORK</span><strong className="mono">SOLANA DEVNET</strong></div>
           </div>
         </aside>
@@ -302,7 +507,7 @@ export function PredictionMarket() {
           <div
             style={{
               width: "100%",
-              maxWidth: "460px",
+              maxWidth: "480px",
               backgroundColor: "#0a0c10",
               border: "1px solid rgba(255, 255, 255, 0.12)",
               borderRadius: "12px",
@@ -327,11 +532,38 @@ export function PredictionMarket() {
             <form onSubmit={handleCreateMarket} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
                 <label className="mono" style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.6)", display: "block", marginBottom: "4px" }}>
-                  TARGET GIG ID (ESCROW)
+                  CHOOSE ACTIVE ESCROW GIG OR ENTER ID
                 </label>
+                {availableGigs.length > 0 && (
+                  <select
+                    value={newMarketGigId}
+                    onChange={(e) => setNewMarketGigId(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      background: "#0a0c10",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      borderRadius: "6px",
+                      color: "#fff",
+                      fontFamily: "monospace",
+                      marginBottom: "6px",
+                      fontSize: "0.78rem",
+                    }}
+                  >
+                    <option value="">-- Select active on-chain gig --</option>
+                    {availableGigs.map((g) => {
+                      const numId = (g as any).gigId ?? parseInt(g.id.replace(/[^0-9]/g, ""), 10);
+                      return (
+                        <option key={g.id} value={numId}>
+                          #{numId}: {g.title.slice(0, 36)} ({g.budget})
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
                 <input
                   type="text"
-                  placeholder="e.g. 499857 or 204"
+                  placeholder="Or enter numeric ID (e.g. 499857 or 204)"
                   value={newMarketGigId}
                   onChange={(e) => setNewMarketGigId(e.target.value)}
                   style={{ width: "100%", padding: "8px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", color: "#fff", fontFamily: "monospace" }}

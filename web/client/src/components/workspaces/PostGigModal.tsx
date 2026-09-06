@@ -43,9 +43,9 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
     setStatusText("Preparing Solana Devnet transaction...");
 
     try {
-      // Find wallet provider (Phantom, Solflare, etc.)
+      // Find wallet provider (Phantom, OKX, Solflare, etc.)
       const win = window as any;
-      const provider = win.phantom?.solana || win.solflare || win.backpack || win.solana;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
 
       if (!provider) {
         throw new Error("No Solana browser wallet detected (e.g. Phantom). Please install or unlock your wallet.");
@@ -282,6 +282,10 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({ isOpen, onClose, onS
                     <option value="RESEARCH">🔬 RESEARCH & STRATEGY</option>
                     <option value="AI & DATA">🤖 AI & DATA EVALS</option>
                     <option value="OPERATIONS">⚡ OPERATIONS & OPS</option>
+                    <option value="GROWTH & SOCIAL">📢 GROWTH & SOCIAL (X, Community)</option>
+                    <option value="CONTENT & WRITING">✍️ CONTENT & WRITING</option>
+                    <option value="SECURITY & AUDIT">🛡️ SECURITY & AUDIT</option>
+                    <option value="GENERAL">🌐 GENERAL TASK</option>
                   </select>
                 </div>
 

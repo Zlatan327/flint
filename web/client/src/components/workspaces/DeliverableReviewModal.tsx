@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, ExternalLink, ShieldCheck, CheckCircle2, AlertTriangle, Loader2, Award, FileCode, Figma, BookOpen, Database, Zap, Lock } from "lucide-react";
+import { X, ExternalLink, ShieldCheck, CheckCircle2, AlertTriangle, Loader2, Award, FileCode, Figma, BookOpen, Database, Zap, Lock, Globe, FileText, ShieldAlert } from "lucide-react";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { settleEscrowOnChain, raiseDisputeOnChain, calculateEscrowFeeSplit, PROTOCOL_TREASURY_PDA } from "@/lib/flint-escrow-client";
 import { PublicKey } from "@solana/web3.js";
@@ -60,6 +60,9 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
     if (deliverableType.includes("Research") || gig.category === "RESEARCH") return <BookOpen size={18} color="#38bdf8" />;
     if (deliverableType.includes("AI") || gig.category === "AI & DATA") return <Database size={18} color="#a855f7" />;
     if (deliverableType.includes("Deployment") || gig.category === "OPERATIONS") return <Zap size={18} color="#eab308" />;
+    if (deliverableType.includes("Social") || deliverableType.includes("Verification") || gig.category === "GROWTH & SOCIAL") return <Globe size={18} color="#f43f5e" />;
+    if (deliverableType.includes("Content") || deliverableType.includes("Article") || gig.category === "CONTENT & WRITING") return <FileText size={18} color="#f59e0b" />;
+    if (deliverableType.includes("Security") || deliverableType.includes("Audit") || gig.category === "SECURITY & AUDIT") return <ShieldAlert size={18} color="#ec4899" />;
     return <FileCode size={18} color="#10b981" />;
   };
 

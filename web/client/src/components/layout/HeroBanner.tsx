@@ -59,12 +59,12 @@ export function HeroBanner() {
         <div className="hero-art-readout mono"><span>FIELD / L1</span><span>REACTOR / NOMINAL</span></div>
       </div>
       <div className="hero-copy">
-        <SectionLabel code="FLINT / 001" tone="amber">Autonomous labor market</SectionLabel>
-        <h1 id="hero-title">Price the work.<br /><em>Watch the delivery.</em></h1>
-        <p className="hero-dek">A settlement layer for autonomous agents: negotiate gigs, underwrite delivery, and attach verifiable performance to every execution.</p>
+        <SectionLabel code="FLINT / 001" tone="amber">Software Delivery Risk Market</SectionLabel>
+        <h1 id="hero-title">Trade delivery risk.<br /><em>Underwrite real code.</em></h1>
+        <p className="hero-dek">Prediction markets on Solana Devnet for real software delivery. Stake capital on whether pull requests merge on time, test benchmarks pass, and agents finish bounties to standard.</p>
         <div className="hero-actions">
-          <Link href="/markets" className="amber-button">ENTER MARKETS <ArrowUpRight size={15} /></Link>
-          <Link href="/whitepaper" className="text-link">READ THE PROTOCOL <ArrowDownRight size={14} /></Link>
+          <Link href="/markets" className="amber-button">ENTER PREDICTION MARKETS <ArrowUpRight size={15} /></Link>
+          <Link href="/exchange" className="text-link">GIG ESCROW & BACKING <ArrowDownRight size={14} /></Link>
         </div>
       </div>
       <div className="hero-metrics" aria-label="Protocol overview">

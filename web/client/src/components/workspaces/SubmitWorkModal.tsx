@@ -22,7 +22,13 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
   const { walletAddress, connected, setIsModalOpen } = useFlintWallet();
   const [deliverableType, setDeliverableType] = useState<DeliverableType>(
     gig?.deliverableType ||
-    (gig?.category === "DESIGN"
+    (gig?.category === "GROWTH & SOCIAL"
+      ? "Social / Verification Proof (X, Telegram, Discord)"
+      : gig?.category === "CONTENT & WRITING"
+      ? "Content / Article / Video Link"
+      : gig?.category === "SECURITY & AUDIT"
+      ? "Security Audit / Report"
+      : gig?.category === "DESIGN"
       ? "Figma / Design URL"
       : gig?.category === "RESEARCH"
       ? "Research Doc / Whitepaper"
@@ -30,6 +36,8 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
       ? "AI Dataset / Weights"
       : gig?.category === "OPERATIONS"
       ? "Deployment Receipt"
+      : gig?.category === "GENERAL"
+      ? "Custom / Live Web Proof"
       : "Code / Repository PR")
   );
   const [deliverableUrl, setDeliverableUrl] = useState("");
@@ -49,7 +57,7 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
     }
 
     if (!deliverableUrl.trim()) {
-      setErrorText("Please provide a pull request link or deliverable URL.");
+      setErrorText("Please provide a deliverable proof URL or social verification link.");
       return;
     }
 
@@ -59,7 +67,12 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
 
     try {
       const win = window as any;
-      const provider = win.phantom?.solana || win.solflare || win.solana;
+      const provider =
+        win.okxwallet?.solana ||
+        win.phantom?.solana ||
+        win.solflare ||
+        win.backpack ||
+        win.solana;
       if (!provider) throw new Error("No Solana browser wallet detected.");
 
       // Compute 32-byte sha256 hash of deliverable type + URL + notes + walletAddress
@@ -261,17 +274,29 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
                   className="mono"
                 >
                   <option value="Code / Repository PR">💻 Code / Repository Pull Request</option>
+                  <option value="Social / Verification Proof (X, Telegram, Discord)">🌐 Social / Verification Proof (X, Telegram, Discord, Profile)</option>
+                  <option value="Content / Article / Video Link">✍️ Content / Article / Video Link</option>
                   <option value="Figma / Design URL">🎨 Figma / Design File or Prototype</option>
                   <option value="Research Doc / Whitepaper">🔬 Research Document / Whitepaper (Docs, Notion, PDF)</option>
                   <option value="AI Dataset / Weights">🤖 AI Dataset / Model Weights (Hugging Face, CSV, JSON)</option>
+                  <option value="Security Audit / Report">🛡️ Security Audit / Vulnerability Report</option>
                   <option value="Deployment Receipt">⚡ Deployment / Milestone Receipt (Tx Signature, URL)</option>
+                  <option value="Custom / Live Web Proof">🔗 Custom / Live Web Proof URL</option>
                 </select>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }} className="mono">
-                    {deliverableType === "Figma / Design URL"
+                    {deliverableType === "Social / Verification Proof (X, Telegram, Discord)"
+                      ? "Social Profile / Verification URL"
+                      : deliverableType === "Content / Article / Video Link"
+                      ? "Article / Media / Publication Link"
+                      : deliverableType === "Security Audit / Report"
+                      ? "Security Audit / Report Document Link"
+                      : deliverableType === "Custom / Live Web Proof"
+                      ? "Live Deliverable / Verification URL"
+                      : deliverableType === "Figma / Design URL"
                       ? "Figma File / Prototype URL"
                       : deliverableType === "Research Doc / Whitepaper"
                       ? "Document / Whitepaper Link"
@@ -289,7 +314,15 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
                   type="url"
                   disabled={loading}
                   placeholder={
-                    deliverableType === "Figma / Design URL"
+                    deliverableType === "Social / Verification Proof (X, Telegram, Discord)"
+                      ? "https://x.com/username or tweet URL, Discord message / profile link"
+                      : deliverableType === "Content / Article / Video Link"
+                      ? "https://mirror.xyz/... or Medium, Substack, YouTube URL"
+                      : deliverableType === "Security Audit / Report"
+                      ? "https://github.com/.../audit.pdf or report link"
+                      : deliverableType === "Custom / Live Web Proof"
+                      ? "https://... (live verifiable deliverable URL)"
+                      : deliverableType === "Figma / Design URL"
                       ? "https://www.figma.com/file/..."
                       : deliverableType === "Research Doc / Whitepaper"
                       ? "https://docs.google.com/... or Notion, Arweave, PDF"
@@ -320,7 +353,15 @@ export const SubmitWorkModal: React.FC<SubmitWorkModalProps> = ({ isOpen, gig, o
                   rows={3}
                   disabled={loading}
                   placeholder={
-                    deliverableType === "Figma / Design URL"
+                    deliverableType === "Social / Verification Proof (X, Telegram, Discord)"
+                      ? "Account handle, action timestamp, follow confirmation, and verification evidence."
+                      : deliverableType === "Content / Article / Video Link"
+                      ? "Summary of content published, reach metrics, and link verification."
+                      : deliverableType === "Security Audit / Report"
+                      ? "Executive summary of audit findings, severity breakdown, and remediation confirmation."
+                      : deliverableType === "Custom / Live Web Proof"
+                      ? "Summary of deliverable criteria met, counterparty instructions, and verification notes."
+                      : deliverableType === "Figma / Design URL"
                       ? "Summary of frame index, typography tokens, auto-layout variants, and handoff notes."
                       : deliverableType === "Research Doc / Whitepaper"
                       ? "Executive takeaways, data sources, simulation methodology, and key risk assumptions."

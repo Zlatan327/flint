@@ -23,6 +23,9 @@ const PLACE_ORDER_DISCRIMINATOR = new Uint8Array([
 const CLAIM_PAYOUT_DISCRIMINATOR = new Uint8Array([
   0x7f, 0xf0, 0x84, 0x3e, 0xe3, 0xc6, 0x92, 0x85,
 ]);
+const RESOLVE_MARKET_DISCRIMINATOR = new Uint8Array([
+  0x9b, 0x17, 0x50, 0xad, 0x2e, 0x4a, 0x17, 0xef,
+]);
 
 const MILESTONE_MARKET_DISC = new Uint8Array([
   0x3a, 0xdc, 0xd7, 0x89, 0xdf, 0x1d, 0xb1, 0xdf,
@@ -99,7 +102,7 @@ export interface DecodedPosition {
  * Decodes MilestoneMarket on-chain account
  */
 export function decodeMilestoneMarket(pubkey: PublicKey, rawData: Buffer | Uint8Array): DecodedMarket | null {
-  if (rawData.length < 94) return null;
+  if (rawData.length < 93) return null;
   const data = rawData instanceof Uint8Array ? rawData : new Uint8Array(rawData);
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
 
@@ -114,8 +117,13 @@ export function decodeMilestoneMarket(pubkey: PublicKey, rawData: Buffer | Uint8
     const totalVolumeLamports = view.getBigUint64(81, true);
     const isResolved = Boolean(data[89]);
     const hasWinner = Boolean(data[90]);
-    const winningOutcome = hasWinner ? Boolean(data[91]) : null;
-    const isPrivateErActive = Boolean(data[92]);
+    let offset = 91;
+    let winningOutcome: boolean | null = null;
+    if (hasWinner) {
+      winningOutcome = Boolean(data[91]);
+      offset = 92;
+    }
+    const isPrivateErActive = Boolean(data[offset]);
 
     return {
       pda: pubkey.toBase58(),
@@ -180,7 +188,7 @@ export async function fetchOnChainMarkets(): Promise<any[]> {
     const marketsList: any[] = [];
 
     for (const { pubkey, account } of accounts) {
-      if (account.data.length >= 94) {
+      if (account.data.length >= 93) {
         // Verify discriminator
         const isMarket = MILESTONE_MARKET_DISC.every((byte, idx) => account.data[idx] === byte);
         if (!isMarket) continue;
@@ -215,6 +223,13 @@ export async function fetchOnChainMarkets(): Promise<any[]> {
           activity: [50, 50, prob],
           pda: decoded.pda,
           gigId: decoded.gigId,
+          marketId: decoded.marketId,
+          authority: decoded.authority,
+          isResolved: decoded.isResolved,
+          winningOutcome: decoded.winningOutcome,
+          targetTimestamp: decoded.targetTimestamp,
+          isPrivateErActive: decoded.isPrivateErActive,
+          marketType: decoded.marketType,
           yesPoolSol: decoded.yesPoolSol,
           noPoolSol: decoded.noPoolSol,
         });
@@ -250,8 +265,10 @@ export async function fetchUserTraderPositions(traderPubkey: PublicKey): Promise
           if (decoded.yesSharesSol > 0) {
             positionsList.push({
               marketId: `PDA-${decoded.market.slice(0, 4)}...${decoded.market.slice(-4)}`,
+              marketPda: decoded.market,
               side: "YES",
               stake: `${decoded.yesSharesSol.toFixed(3)} SOL`,
+              sharesSol: decoded.yesSharesSol,
               returnValue: `+${(decoded.yesSharesSol * 0.95).toFixed(3)} SOL`,
               move: "LIVE DEVNET",
               pda: decoded.pda,
@@ -260,8 +277,10 @@ export async function fetchUserTraderPositions(traderPubkey: PublicKey): Promise
           if (decoded.noSharesSol > 0) {
             positionsList.push({
               marketId: `PDA-${decoded.market.slice(0, 4)}...${decoded.market.slice(-4)}`,
+              marketPda: decoded.market,
               side: "NO",
               stake: `${decoded.noSharesSol.toFixed(3)} SOL`,
+              sharesSol: decoded.noSharesSol,
               returnValue: `+${(decoded.noSharesSol * 0.95).toFixed(3)} SOL`,
               move: "LIVE DEVNET",
               pda: decoded.pda,
@@ -276,6 +295,52 @@ export async function fetchUserTraderPositions(traderPubkey: PublicKey): Promise
     console.warn("Could not load user positions from Devnet RPC:", err);
     return [];
   }
+}
+
+/**
+ * Resolves a milestone prediction market outcome on Solana Devnet
+ */
+export async function resolveMarketOnChain(
+  marketPdaStr: string,
+  outcomeIsYes: boolean,
+  authorityPubkey: PublicKey,
+  provider: any
+): Promise<string> {
+  const connection = new Connection(DEVNET_RPC, "confirmed");
+  const marketPda = new PublicKey(marketPdaStr);
+
+  // Discriminator (8B) + outcome_is_yes (1B) + vrf_randomness Option tag (1B, None = 0)
+  const data = new Uint8Array(8 + 1 + 1);
+  data.set(RESOLVE_MARKET_DISCRIMINATOR, 0);
+  data[8] = outcomeIsYes ? 1 : 0;
+  data[9] = 0; // None for vrf_randomness
+
+  const instruction = new TransactionInstruction({
+    programId: MARKET_PROGRAM_ID,
+    data: Buffer.from(data),
+    keys: [
+      { pubkey: marketPda, isSigner: false, isWritable: true },
+      { pubkey: authorityPubkey, isSigner: true, isWritable: false },
+    ],
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = authorityPubkey;
+
+  let txSignature = "";
+  if (provider.signAndSendTransaction) {
+    const res = await provider.signAndSendTransaction(transaction);
+    txSignature = res.signature || res.toString();
+  } else if (provider.sendTransaction) {
+    txSignature = await provider.sendTransaction(transaction, connection);
+  } else {
+    throw new Error("Connected wallet does not support signing transactions.");
+  }
+
+  await connection.confirmTransaction(txSignature, "confirmed");
+  return txSignature;
 }
 
 /**

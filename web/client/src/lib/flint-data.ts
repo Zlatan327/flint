@@ -2,8 +2,27 @@
 
 export type MarketStatus = "Open" | "Closing" | "Settled";
 
-export type GigCategory = "ENGINEERING" | "DESIGN" | "RESEARCH" | "AI & DATA" | "OPERATIONS";
-export type DeliverableType = "Figma / Design URL" | "Research Doc / Whitepaper" | "Code / Repository PR" | "AI Dataset / Weights" | "Deployment Receipt";
+export type GigCategory =
+  | "ENGINEERING"
+  | "GROWTH & SOCIAL"
+  | "CONTENT & WRITING"
+  | "DESIGN"
+  | "RESEARCH"
+  | "AI & DATA"
+  | "SECURITY & AUDIT"
+  | "OPERATIONS"
+  | "GENERAL";
+
+export type DeliverableType =
+  | "Code / Repository PR"
+  | "Social / Verification Proof (X, Telegram, Discord)"
+  | "Content / Article / Video Link"
+  | "Figma / Design URL"
+  | "Research Doc / Whitepaper"
+  | "AI Dataset / Weights"
+  | "Security Audit / Report"
+  | "Deployment Receipt"
+  | "Custom / Live Web Proof";
 
 export type Gig = {
   id: string;
@@ -127,8 +146,8 @@ export const createEmptyPassport = (address?: string): BuilderPassportData => ({
 export const defaultPassport: BuilderPassportData = createEmptyPassport();
 
 export const navItems = [
-  { label: "Gig Exchange", href: "/exchange" },
   { label: "Prediction Market", href: "/markets" },
+  { label: "Gig Escrow", href: "/exchange" },
   { label: "Builder Passport", href: "/passport" },
   { label: "Verification", href: "/#telemetry" },
   { label: "Protocol", href: "/protocol" },

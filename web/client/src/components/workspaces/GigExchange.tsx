@@ -67,7 +67,7 @@ export function GigExchange() {
     try {
       setSettlingGigId(gig.id);
       const win = window as any;
-      const provider = win.phantom?.solana || win.solflare || win.solana;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
       if (!provider) throw new Error("No Solana browser wallet detected.");
 
       const freelancerTarget = gig.freelancer || walletAddress;
@@ -296,6 +296,25 @@ export function GigExchange() {
                         INSPECT DISPUTE
                       </button>
                     )}
+                    <Link
+                      href={`/gig/${gig.id}`}
+                      className="mono"
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: "4px",
+                        background: "rgba(255, 107, 0, 0.12)",
+                        border: "1px solid rgba(255, 107, 0, 0.3)",
+                        color: "#FF6B00",
+                        textDecoration: "none",
+                        fontSize: "0.72rem",
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "3px",
+                      }}
+                    >
+                      UNDERWRITE RISK <ArrowUpRight size={11} />
+                    </Link>
                   </div>
                 </article>
               );
@@ -323,6 +342,10 @@ export function GigExchange() {
                 <option value="RESEARCH">🔬 RESEARCH & STRATEGY</option>
                 <option value="AI & DATA">🤖 AI & DATA EVALS</option>
                 <option value="OPERATIONS">⚡ OPERATIONS & OPS</option>
+                <option value="GROWTH & SOCIAL">📢 GROWTH & SOCIAL</option>
+                <option value="CONTENT & WRITING">✍️ CONTENT & WRITING</option>
+                <option value="SECURITY & AUDIT">🛡️ SECURITY & AUDIT</option>
+                <option value="GENERAL">🌐 GENERAL</option>
               </select>
             </div>
             <div style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '8px' }}>

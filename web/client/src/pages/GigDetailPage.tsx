@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, Award, CheckCircle2, ChevronUp, Clock, ExternalLink, FileCode, Figma, BookOpen, Database, Zap, Shield, ShieldCheck, AlertTriangle, Send, Wallet, Loader2 } from "lucide-react";
+import { ArrowLeft, Award, CheckCircle2, ChevronUp, Clock, ExternalLink, FileCode, Figma, BookOpen, Database, Zap, Shield, ShieldCheck, AlertTriangle, Send, Wallet, Loader2, Plus, Sparkles, TrendingUp } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { SectionLabel } from "@/components/layout/SectionLabel";
 import { useFlintWallet } from "@/contexts/WalletContext";
@@ -8,7 +8,7 @@ import { Gig } from "@/lib/flint-data";
 import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
 import { SubmitWorkModal } from "@/components/workspaces/SubmitWorkModal";
 import { DeliverableReviewModal } from "@/components/workspaces/DeliverableReviewModal";
-import { placeMarketOrderOnChain } from "@/lib/flint-market-client";
+import { placeMarketOrderOnChain, fetchOnChainMarkets, createMarketOnChain } from "@/lib/flint-market-client";
 import { PublicKey } from "@solana/web3.js";
 
 export default function GigDetailPage() {
@@ -22,7 +22,9 @@ export default function GigDetailPage() {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
-  // Prediction market betting state for this specific gig
+  // Prediction market state for this specific gig
+  const [matchedMarket, setMatchedMarket] = useState<any | null>(null);
+  const [creatingMarket, setCreatingMarket] = useState(false);
   const [betSide, setBetSide] = useState<"YES" | "NO">("YES");
   const [stakeSol, setStakeSol] = useState("0.1");
   const [trading, setTrading] = useState(false);
@@ -33,14 +35,21 @@ export default function GigDetailPage() {
     async function loadGig() {
       setLoading(true);
       try {
-        const onChainGigs = await fetchOnChainGigs();
+        const [onChainGigs, markets] = await Promise.all([
+          fetchOnChainGigs().catch(() => []),
+          fetchOnChainMarkets().catch(() => []),
+        ]);
         if (!isMounted) return;
         const found = onChainGigs.find(
           (g) => g.id === gigId || g.pda === gigId || `GIG-${(g as any).gigId}` === gigId
         );
         setCurrentGig(found || null);
+
+        const rawNum = parseInt(gigId.replace(/[^0-9]/g, ""), 10) || (found ? parseInt(found.id.replace(/[^0-9]/g, ""), 10) : 0);
+        const match = markets.find((m) => m.gigId === rawNum || (found && m.gigId === (found as any).gigId));
+        setMatchedMarket(match || null);
       } catch (err) {
-        console.warn("Failed to load gig:", err);
+        console.warn("Failed to load gig or markets:", err);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -94,6 +103,50 @@ export default function GigDetailPage() {
     }) : null);
   };
 
+  const handleCreateMarketForGig = async () => {
+    if (!connected || !walletAddress) {
+      setIsModalOpen(true);
+      return;
+    }
+
+    const rawNum = parseInt(gigId.replace(/[^0-9]/g, ""), 10) || (currentGig ? parseInt(currentGig.id.replace(/[^0-9]/g, ""), 10) : 0);
+    if (!rawNum) {
+      alert("Invalid numeric gig ID for prediction market.");
+      return;
+    }
+
+    setCreatingMarket(true);
+    try {
+      const win = window as any;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
+      if (!provider) throw new Error("No Solana browser wallet detected.");
+
+      const marketId = Math.floor(1000 + Math.random() * 9000);
+      const targetTimestamp = Math.floor(Date.now() / 1000) + 7 * 86400;
+
+      const result = await createMarketOnChain(
+        {
+          marketId,
+          gigId: rawNum,
+          marketType: 0,
+          targetTimestamp,
+          authority: new PublicKey(walletAddress),
+        },
+        provider
+      );
+
+      setTradeTx(result.txSignature);
+      const markets = await fetchOnChainMarkets();
+      const match = markets.find((m) => m.gigId === rawNum);
+      setMatchedMarket(match || null);
+    } catch (err: any) {
+      console.error("Market creation failed:", err);
+      alert(`Deployment failed: ${err?.message || "Transaction rejected"}`);
+    } finally {
+      setCreatingMarket(false);
+    }
+  };
+
   const handlePlaceOrder = async () => {
     if (!connected || !walletAddress) {
       setIsModalOpen(true);
@@ -106,10 +159,10 @@ export default function GigDetailPage() {
       const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
       if (!provider) throw new Error("No Solana wallet detected.");
 
-      const rawId = parseInt(gigId.replace(/[^0-9]/g, ""), 10) || 1;
+      const mktId = matchedMarket ? matchedMarket.marketId : (parseInt(gigId.replace(/[^0-9]/g, ""), 10) || 1);
       const result = await placeMarketOrderOnChain(
         {
-          marketId: rawId,
+          marketId: mktId,
           isYes: betSide === "YES",
           amountSol: parseFloat(stakeSol) || 0.1,
           traderPubkey: new PublicKey(walletAddress),
@@ -117,6 +170,10 @@ export default function GigDetailPage() {
         provider
       );
       setTradeTx(result.txSignature);
+      const markets = await fetchOnChainMarkets();
+      const rawNum = parseInt(gigId.replace(/[^0-9]/g, ""), 10);
+      const match = markets.find((m) => m.gigId === rawNum);
+      setMatchedMarket(match || null);
     } catch (err: any) {
       console.error("Order failed:", err);
       alert(`Trade error: ${err?.message || "Transaction rejected"}`);
@@ -341,116 +398,182 @@ export default function GigDetailPage() {
             <div style={{ background: "rgba(10, 12, 16, 0.8)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "10px", padding: "1.5rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
                 <SectionLabel code="MKT / UNDERWRITE" tone="amber">Performance Insurance</SectionLabel>
-                <span className="mono" style={{ fontSize: "0.68rem", color: "#10b981" }}>DEVNET PRIVATE ROLLUP</span>
+                <span className="mono" style={{ fontSize: "0.68rem", color: "#10b981" }}>DEVNET L1</span>
               </div>
               
               <h2 style={{ fontSize: "1.3rem", margin: "0 0 0.5rem" }}>Underwrite Delivery Risk</h2>
               <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.82rem", lineHeight: "1.4", margin: "0 0 1.25rem" }}>
-                Speculators and underwriters bet on whether this gig will be completed on-time. Underwriting creates crowd-sourced insurance for the requester.
+                Stake Devnet SOL on whether this gig milestone ships on-time and passes verification. Real capital underwriting creates crowd-sourced performance insurance.
               </p>
 
-              {/* Odds Meter */}
-              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "14px", marginBottom: "1.25rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                  <span className="mono" style={{ fontSize: "0.72rem", color: "#888" }}>ON-TIME DELIVERY PROBABILITY</span>
-                  <strong className="mono" style={{ fontSize: "1.2rem", color: "#10b981" }}>74%</strong>
-                </div>
-                <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.08)", borderRadius: "3px", overflow: "hidden" }}>
-                  <div style={{ width: "74%", height: "100%", background: "#10b981" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "0.7rem" }} className="mono">
-                  <span style={{ color: "#10b981" }}>YES: 0.74 SOL</span>
-                  <span style={{ color: "#f43f5e" }}>NO: 0.26 SOL</span>
-                </div>
-              </div>
-
-              {/* Buy Form */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  <button
-                    type="button"
-                    onClick={() => setBetSide("YES")}
-                    style={{
-                      padding: "10px",
-                      borderRadius: "6px",
-                      border: betSide === "YES" ? "2px solid #10b981" : "1px solid rgba(255,255,255,0.1)",
-                      background: betSide === "YES" ? "rgba(16, 185, 129, 0.15)" : "rgba(255,255,255,0.02)",
-                      color: betSide === "YES" ? "#10b981" : "rgba(255,255,255,0.6)",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                    }}
-                    className="mono"
-                  >
-                    BUY YES (74%)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBetSide("NO")}
-                    style={{
-                      padding: "10px",
-                      borderRadius: "6px",
-                      border: betSide === "NO" ? "2px solid #f43f5e" : "1px solid rgba(255,255,255,0.1)",
-                      background: betSide === "NO" ? "rgba(244, 63, 94, 0.15)" : "rgba(255,255,255,0.02)",
-                      color: betSide === "NO" ? "#f43f5e" : "rgba(255,255,255,0.6)",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                    }}
-                    className="mono"
-                  >
-                    BUY NO (26%)
-                  </button>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }} className="mono">
-                    STAKE AMOUNT (SOL)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0.01"
-                    disabled={trading}
-                    value={stakeSol}
-                    onChange={(e) => setStakeSol(e.target.value)}
-                    style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#fff",
-                      padding: "0.6rem",
-                      borderRadius: "6px",
-                      outline: "none",
-                    }}
-                    className="mono"
-                  />
-                </div>
-
-                {tradeTx && (
-                  <div style={{ padding: "8px 10px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "6px", fontSize: "0.72rem", color: "#10b981" }} className="mono">
-                    Order confirmed! <a href={`https://explorer.solana.com/tx/${tradeTx}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>Explorer ↗</a>
+              {matchedMarket ? (
+                <>
+                  {/* Live On-Chain Odds Meter */}
+                  <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "14px", marginBottom: "1.25rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span className="mono" style={{ fontSize: "0.72rem", color: "#888" }}>DELIVERY PROBABILITY</span>
+                        <span className="mono" style={{ fontSize: "0.62rem", background: "rgba(16,185,129,0.15)", color: "#10b981", padding: "1px 5px", borderRadius: "3px" }}>LIVE ON-CHAIN</span>
+                      </div>
+                      <strong className="mono" style={{ fontSize: "1.2rem", color: "#10b981" }}>{matchedMarket.probability}%</strong>
+                    </div>
+                    <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.08)", borderRadius: "3px", overflow: "hidden" }}>
+                      <div style={{ width: `${matchedMarket.probability}%`, height: "100%", background: "#10b981" }} />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "0.7rem" }} className="mono">
+                      <span style={{ color: "#10b981" }}>YES POOL: {matchedMarket.yesPoolSol.toFixed(2)} SOL</span>
+                      <span style={{ color: "#f43f5e" }}>NO POOL: {matchedMarket.noPoolSol.toFixed(2)} SOL</span>
+                    </div>
                   </div>
-                )}
 
-                <button
-                  type="button"
-                  disabled={trading}
-                  onClick={handlePlaceOrder}
-                  style={{
-                    padding: "0.8rem",
-                    borderRadius: "6px",
-                    background: betSide === "YES" ? "#10b981" : "#f43f5e",
-                    color: "#000",
-                    border: "none",
-                    fontWeight: 700,
-                    fontSize: "0.85rem",
-                    cursor: trading ? "not-allowed" : "pointer",
-                  }}
-                  className="mono"
-                >
-                  {trading ? "EXECUTING ON DEVNET..." : `CONFIRM ${betSide} ORDER (${stakeSol} SOL)`}
-                </button>
-              </div>
+                  {matchedMarket.isResolved ? (
+                    <div style={{ padding: "14px", background: matchedMarket.winningOutcome ? "rgba(16,185,129,0.1)" : "rgba(244,63,94,0.1)", border: `1px solid ${matchedMarket.winningOutcome ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}`, borderRadius: "8px", textAlign: "center" }} className="mono">
+                      <CheckCircle2 size={18} style={{ display: "inline", verticalAlign: "middle", marginRight: "6px", color: matchedMarket.winningOutcome ? "#10b981" : "#f43f5e" }} />
+                      <strong style={{ color: matchedMarket.winningOutcome ? "#10b981" : "#f43f5e", fontSize: "0.85rem" }}>
+                        MARKET RESOLVED ON-CHAIN: {matchedMarket.winningOutcome ? "YES (DELIVERED)" : "NO (FAILED)"}
+                      </strong>
+                    </div>
+                  ) : (
+                    /* Buy Form */
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setBetSide("YES")}
+                          style={{
+                            padding: "10px",
+                            borderRadius: "6px",
+                            border: betSide === "YES" ? "2px solid #10b981" : "1px solid rgba(255,255,255,0.1)",
+                            background: betSide === "YES" ? "rgba(16, 185, 129, 0.15)" : "rgba(255,255,255,0.02)",
+                            color: betSide === "YES" ? "#10b981" : "rgba(255,255,255,0.6)",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontSize: "0.85rem",
+                          }}
+                          className="mono"
+                        >
+                          BUY YES ({matchedMarket.probability}%)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBetSide("NO")}
+                          style={{
+                            padding: "10px",
+                            borderRadius: "6px",
+                            border: betSide === "NO" ? "2px solid #f43f5e" : "1px solid rgba(255,255,255,0.1)",
+                            background: betSide === "NO" ? "rgba(244, 63, 94, 0.15)" : "rgba(255,255,255,0.02)",
+                            color: betSide === "NO" ? "#f43f5e" : "rgba(255,255,255,0.6)",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontSize: "0.85rem",
+                          }}
+                          className="mono"
+                        >
+                          BUY NO ({100 - matchedMarket.probability}%)
+                        </button>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }} className="mono">
+                          STAKE AMOUNT (SOL)
+                        </label>
+                        <div style={{ display: "flex", gap: "6px", marginBottom: "4px" }}>
+                          {[0.05, 0.1, 0.5, 1.0].map((amt) => (
+                            <button
+                              key={amt}
+                              type="button"
+                              onClick={() => setStakeSol(String(amt))}
+                              style={{
+                                padding: "3px 8px",
+                                borderRadius: "4px",
+                                fontSize: "0.7rem",
+                                fontFamily: "monospace",
+                                background: parseFloat(stakeSol) === amt ? "#FF6B00" : "rgba(255,255,255,0.05)",
+                                color: parseFloat(stakeSol) === amt ? "#000" : "rgba(255,255,255,0.8)",
+                                fontWeight: parseFloat(stakeSol) === amt ? 700 : 500,
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {amt}
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="number"
+                          step="0.05"
+                          min="0.01"
+                          disabled={trading}
+                          value={stakeSol}
+                          onChange={(e) => setStakeSol(e.target.value)}
+                          style={{
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.12)",
+                            color: "#fff",
+                            padding: "0.6rem",
+                            borderRadius: "6px",
+                            outline: "none",
+                          }}
+                          className="mono"
+                        />
+                      </div>
+
+                      {tradeTx && (
+                        <div style={{ padding: "8px 10px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "6px", fontSize: "0.72rem", color: "#10b981" }} className="mono">
+                          Order confirmed! <a href={`https://explorer.solana.com/tx/${tradeTx}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>Explorer ↗</a>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={trading}
+                        onClick={handlePlaceOrder}
+                        style={{
+                          padding: "0.8rem",
+                          borderRadius: "6px",
+                          background: betSide === "YES" ? "#10b981" : "#f43f5e",
+                          color: "#000",
+                          border: "none",
+                          fontWeight: 700,
+                          fontSize: "0.85rem",
+                          cursor: trading ? "not-allowed" : "pointer",
+                        }}
+                        className="mono"
+                      >
+                        {trading ? "EXECUTING ON DEVNET..." : `CONFIRM ${betSide} ORDER (${stakeSol} SOL)`}
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }} className="mono">
+                    <span style={{ fontSize: "0.7rem", color: "#888" }}>MARKET PDA:</span>
+                    <Link href="/markets" style={{ color: "#FF6B00", fontSize: "0.72rem", textDecoration: "none" }}>
+                      OPEN FULL ORDER BOOK ↗
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                /* No Market Initialized State */
+                <div style={{ padding: "1.5rem 1rem", textAlign: "center", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: "8px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                  <TrendingUp size={28} color="rgba(255,255,255,0.3)" />
+                  <div>
+                    <h4 style={{ color: "#fff", margin: "0 0 4px", fontSize: "0.95rem" }}>No Active Market for Gig #{gigId}</h4>
+                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.78rem", lineHeight: "1.4", margin: 0 }}>
+                      Initialize a prediction market on Solana Devnet to let underwriters stake real capital on this milestone deliverable.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={creatingMarket}
+                    onClick={handleCreateMarketForGig}
+                    className="amber-button mono"
+                    style={{ fontSize: "0.78rem", padding: "8px 16px", marginTop: "6px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    {creatingMarket ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                    {creatingMarket ? "INITIALIZING ON SOLANA DEVNET..." : "OPEN PREDICTION MARKET FOR THIS GIG"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

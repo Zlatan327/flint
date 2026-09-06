@@ -33,8 +33,8 @@ export default function Home() {
       <main>
         <HeroBanner />
         <div className="workspace-nav" aria-label="FLINT workspaces">
-          <Link href="/exchange"><span className="workspace-nav-index mono">01</span><strong>GIG EXCHANGE</strong><span>Find, submit, fund</span></Link>
-          <Link href="/markets"><span className="workspace-nav-index mono">02</span><strong>PREDICTION MARKET</strong><span>Bet, track, settle</span></Link>
+          <Link href="/markets"><span className="workspace-nav-index mono">01</span><strong>PREDICTION MARKET</strong><span>Underwrite delivery risk & trade</span></Link>
+          <Link href="/exchange"><span className="workspace-nav-index mono">02</span><strong>GIG ESCROW</strong><span>Fund milestones & back markets</span></Link>
         </div>
         <div className="support-stage">
           <TelemetryRail />
