@@ -343,6 +343,53 @@
   letter-spacing: 0.02em;
 }
 
+.topbar-fund-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 160ms var(--ease-out);
+}
+
+.topbar-fund-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.topbar-fund-btn-deposit {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.topbar-fund-btn-deposit:hover {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+
+.topbar-fund-btn-send {
+  color: #FF6B00;
+  border-color: rgba(255, 107, 0, 0.25);
+  background: rgba(255, 107, 0, 0.06);
+}
+
+.topbar-fund-btn-send:hover {
+  background: rgba(255, 107, 0, 0.16);
+  border-color: rgba(255, 107, 0, 0.45);
+  color: #ff8533;
+}
+
 .topbar-disconnect-btn {
   display: inline-flex;
   align-items: center;
@@ -2086,6 +2133,14 @@
 
   .topbar-balance {
     display: none;
+  }
+
+  .topbar-fund-btn span {
+    display: none;
+  }
+
+  .topbar-fund-btn {
+    padding: 0 7px;
   }
 
   .wallet-button span {

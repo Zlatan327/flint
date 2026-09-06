@@ -301,3 +301,57 @@ export async function raiseDisputeOnChain(
   return txSignature;
 }
 
+/**
+ * Transfers native SOL from the connected wallet to any recipient address on Solana Devnet L1.
+ * Allows users to send or withdraw funds to any external Solana wallet of their choice.
+ */
+export async function transferSolOnChain(
+  recipientAddress: string,
+  amountSol: number,
+  senderPubkey: PublicKey,
+  provider: any
+): Promise<string> {
+  const connection = new Connection(DEVNET_RPC, "confirmed");
+
+  // Validate recipient public key format
+  let toPubkey: PublicKey;
+  try {
+    toPubkey = new PublicKey(recipientAddress.trim());
+  } catch (_err) {
+    throw new Error("Invalid Solana recipient address. Please enter a valid base58 public key.");
+  }
+
+  if (toPubkey.equals(senderPubkey)) {
+    throw new Error("Recipient address cannot be your own wallet address.");
+  }
+
+  const lamports = Math.round(amountSol * 1_000_000_000);
+  if (lamports <= 0) {
+    throw new Error("Transfer amount must be greater than 0 SOL.");
+  }
+
+  const instruction = SystemProgram.transfer({
+    fromPubkey: senderPubkey,
+    toPubkey,
+    lamports,
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = senderPubkey;
+
+  let txSignature = "";
+  if (provider.signAndSendTransaction) {
+    const res = await provider.signAndSendTransaction(transaction);
+    txSignature = res.signature || res.toString();
+  } else if (provider.sendTransaction) {
+    txSignature = await provider.sendTransaction(transaction, connection);
+  } else {
+    throw new Error("Connected wallet does not support signing.");
+  }
+
+  await connection.confirmTransaction(txSignature, "confirmed");
+  return txSignature;
+}
+

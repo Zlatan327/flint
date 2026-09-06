@@ -1,11 +1,13 @@
 // Black Ledger style reminder: the top bar is an instrument strip—quiet, ruled, and state-led.
 
-import { ArrowUpRight, Menu, Wallet, X, Bot } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Menu, Wallet, X, Bot } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { navItems } from "@/lib/flint-data";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { WalletModal } from "@/components/wallet/WalletModal";
+import { SendWithdrawModal } from "@/components/wallet/SendWithdrawModal";
+import { DepositModal } from "@/components/wallet/DepositModal";
 import { AccountDrawer } from "@/components/wallet/AccountDrawer";
 import { AgentConsoleModal } from "@/components/protocol/AgentConsoleModal";
 
@@ -14,7 +16,15 @@ export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isAgentConsoleOpen, setIsAgentConsoleOpen] = useState(false);
   const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState(false);
-  const { connected, walletAddress, balance, setIsModalOpen, disconnectWallet } = useFlintWallet();
+  const {
+    connected,
+    walletAddress,
+    balance,
+    setIsModalOpen,
+    disconnectWallet,
+    openSendModal,
+    openDepositModal,
+  } = useFlintWallet();
 
   return (
     <header className="topbar">
@@ -58,6 +68,52 @@ export function TopBar() {
 
         {/* Mobile menu drawer footer — hidden on desktop, only displays in mobile menu drawer */}
         <div className="mobile-nav-footer">
+          {connected && walletAddress && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", width: "100%", marginBottom: "8px" }}>
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); openDepositModal(); }}
+                className="mono"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  padding: "8px",
+                  fontSize: "0.75rem",
+                  background: "rgba(16, 185, 129, 0.12)",
+                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                  color: "#10b981",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                <ArrowDownLeft size={14} /> DEPOSIT
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); openSendModal(); }}
+                className="mono"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  padding: "8px",
+                  fontSize: "0.75rem",
+                  background: "rgba(255, 107, 0, 0.12)",
+                  border: "1px solid rgba(255, 107, 0, 0.3)",
+                  color: "#FF6B00",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                <ArrowUpRight size={14} /> SEND
+              </button>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => { setMenuOpen(false); setIsAgentConsoleOpen(true); }}
@@ -96,6 +152,25 @@ export function TopBar() {
         {/* Wallet Connection */}
         {connected && walletAddress ? (
           <div className="wallet-connected-group">
+            <button
+              type="button"
+              className="topbar-fund-btn topbar-fund-btn-deposit mono"
+              onClick={openDepositModal}
+              title="Deposit Devnet SOL"
+            >
+              <ArrowDownLeft size={12} />
+              <span>DEPOSIT</span>
+            </button>
+            <button
+              type="button"
+              className="topbar-fund-btn topbar-fund-btn-send mono"
+              onClick={openSendModal}
+              title="Send / Withdraw SOL to any wallet"
+            >
+              <ArrowUpRight size={12} />
+              <span>SEND</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsAccountDrawerOpen(true)}
@@ -140,6 +215,8 @@ export function TopBar() {
         </button>
       </div>
       <WalletModal />
+      <SendWithdrawModal />
+      <DepositModal />
       <AccountDrawer
         isOpen={isAccountDrawerOpen}
         onClose={() => setIsAccountDrawerOpen(false)}

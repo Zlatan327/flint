@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Copy, Check, ExternalLink, RefreshCw, LogOut, ArrowRight, ShieldCheck, Award, Wallet, Droplet, Loader2 } from "lucide-react";
+import { X, Copy, Check, ExternalLink, RefreshCw, LogOut, ArrowRight, ShieldCheck, Award, Wallet, Droplet, Loader2, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useFlintWallet } from "@/contexts/WalletContext";
 import { Link } from "wouter";
 
@@ -14,7 +14,16 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
   onClose,
   onSwitchWallet,
 }) => {
-  const { walletAddress, walletName, balance, disconnectWallet, requestAirdrop, refreshBalance } = useFlintWallet();
+  const {
+    walletAddress,
+    walletName,
+    balance,
+    disconnectWallet,
+    requestAirdrop,
+    refreshBalance,
+    openSendModal,
+    openDepositModal,
+  } = useFlintWallet();
   const [copied, setCopied] = useState(false);
   const [airdropping, setAirdropping] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -222,6 +231,61 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
             <div className="mono" style={{ fontSize: "2rem", fontWeight: 700, color: "#fff" }}>
               {balance !== null ? balance.toFixed(4) : "—"}{" "}
               <span style={{ fontSize: "1rem", color: "#FF6B00" }}>SOL</span>
+            </div>
+
+            {/* Quick Actions: Deposit & Send/Withdraw */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "4px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openDepositModal();
+                }}
+                className="mono"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  padding: "8px",
+                  background: "rgba(16, 185, 129, 0.12)",
+                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                  borderRadius: "6px",
+                  color: "#10b981",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 160ms var(--ease-out)",
+                }}
+              >
+                <ArrowDownLeft size={14} /> DEPOSIT
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openSendModal();
+                }}
+                className="mono"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  padding: "8px",
+                  background: "rgba(255, 107, 0, 0.12)",
+                  border: "1px solid rgba(255, 107, 0, 0.3)",
+                  borderRadius: "6px",
+                  color: "#FF6B00",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 160ms var(--ease-out)",
+                }}
+              >
+                <ArrowUpRight size={14} /> SEND
+              </button>
             </div>
 
             <button

@@ -19,6 +19,12 @@ interface WalletContextType {
   balance: number | null;
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
+  isSendModalOpen: boolean;
+  setIsSendModalOpen: (open: boolean) => void;
+  isDepositModalOpen: boolean;
+  setIsDepositModalOpen: (open: boolean) => void;
+  openSendModal: () => void;
+  openDepositModal: () => void;
   openWalletConnect: () => Promise<void>;
   connectWallet: (wallet: WalletOption) => Promise<void>;
   disconnectWallet: () => void;
@@ -58,6 +64,24 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [walletName, setWalletName] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+
+  const openSendModal = useCallback(() => {
+    if (!connected || !walletAddress) {
+      setIsModalOpen(true);
+      return;
+    }
+    setIsSendModalOpen(true);
+  }, [connected, walletAddress]);
+
+  const openDepositModal = useCallback(() => {
+    if (!connected || !walletAddress) {
+      setIsModalOpen(true);
+      return;
+    }
+    setIsDepositModalOpen(true);
+  }, [connected, walletAddress]);
 
   // Fetch balance from Solana Devnet RPC
   const fetchBalance = useCallback(async (pubkey: string) => {
@@ -303,6 +327,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         balance,
         isModalOpen,
         setIsModalOpen,
+        isSendModalOpen,
+        setIsSendModalOpen,
+        isDepositModalOpen,
+        setIsDepositModalOpen,
+        openSendModal,
+        openDepositModal,
         openWalletConnect,
         connectWallet,
         disconnectWallet,
