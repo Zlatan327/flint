@@ -52,6 +52,9 @@
   --emerald: #10b981;
   --steel: #a1a1a1;
   --dim: #666666;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --white: #ffffff;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --radius: 0.15rem;
@@ -2312,7 +2315,7 @@
   align-items: center;
   min-height: 62px;
   padding: 0 28px;
-  color: var(--muted);
+  color: #8f8f8f;
   border-right: 1px solid var(--line);
   transition: color 160ms ease, background 160ms ease;
 }
@@ -2332,7 +2335,7 @@
 .prediction-workspace { background: #090909; }
 .workspace-heading { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
 .workspace-heading h2 { max-width: 420px; margin: 12px 0 8px; font-size: clamp(30px, 3.3vw, 48px); line-height: 0.98; letter-spacing: -0.06em; }
-.workspace-heading p { max-width: 480px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.workspace-heading p { max-width: 480px; margin: 0; color: #8f8f8f; font-size: 13px; line-height: 1.6; }
 .workspace-switcher { display: flex; flex-shrink: 0; border: 1px solid var(--line-strong); }
 .workspace-tab { padding: 10px 12px; color: #747474; background: transparent; border: 0; font: 9px "IBM Plex Mono", monospace; letter-spacing: 0.05em; }
 .workspace-tab + .workspace-tab { border-left: 1px solid var(--line); }
@@ -2483,13 +2486,13 @@
 .category-kicker { display: inline-flex; align-items: center; gap: 7px; color: var(--amber); font-size: 9px; letter-spacing: 0.07em; }
 .category-hero h1 { max-width: 760px; margin: 20px 0 16px; color: #f0f0f0; font-size: clamp(48px, 7vw, 102px); line-height: 0.9; letter-spacing: -0.075em; }
 .category-hero h1 em { color: #767676; font-style: normal; }
-.category-hero p { max-width: 590px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.category-hero p { max-width: 590px; margin: 0; color: #8f8f8f; font-size: 14px; line-height: 1.65; }
 .category-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
 .category-summary { align-self: stretch; display: flex; flex-direction: column; justify-content: space-between; min-height: 190px; padding: 22px; background: #0d0d0d; border-left: 2px solid var(--amber); border-top: 1px solid var(--line); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .category-summary-market { border-left-color: var(--emerald); }
 .category-summary > svg { margin-bottom: auto; color: var(--emerald); }
 .category-summary strong { margin: 10px 0 8px; color: #f0f0f0; font-size: 24px; letter-spacing: -0.04em; }
-.category-summary p { font-size: 11px; line-height: 1.5; }
+.category-summary p, .category-hero .category-summary p { max-width: none; margin: 6px 0 0; color: #8c8c8c; font-size: 11px; line-height: 1.5; }
 .category-summary-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; color: #6b6b6b; font-size: 8px; }
 .category-page .workspace-section { padding: 48px 5vw; }
 .category-page .workspace-heading h2 { font-size: clamp(38px, 4vw, 64px); }
