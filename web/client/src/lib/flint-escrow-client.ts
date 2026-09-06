@@ -251,3 +251,53 @@ export async function settleEscrowOnChain(
   await connection.confirmTransaction(txSignature, "confirmed");
   return txSignature;
 }
+
+const RAISE_DISPUTE_DISCRIMINATOR = new Uint8Array([
+  0x44, 0x12, 0x1c, 0x93, 0x7a, 0x8a, 0x19, 0xf2,
+]);
+
+/**
+ * Raises a quality dispute on-chain on Solana Devnet L1, freezing the escrow vault.
+ * Authorized for either the gig client or assigned freelancer.
+ */
+export async function raiseDisputeOnChain(
+  gigEscrowPdaStr: string,
+  callerPubkey: PublicKey,
+  provider: any
+): Promise<string> {
+  const connection = new Connection(DEVNET_RPC, "confirmed");
+  const gigEscrowPda = new PublicKey(gigEscrowPdaStr);
+
+  const data = new Uint8Array(8 + 32);
+  data.set(RAISE_DISPUTE_DISCRIMINATOR, 0);
+  const vrfSeed = crypto.getRandomValues(new Uint8Array(32));
+  data.set(vrfSeed, 8);
+
+  const instruction = new TransactionInstruction({
+    programId: ESCROW_PROGRAM_ID,
+    data: Buffer.from(data),
+    keys: [
+      { pubkey: gigEscrowPda, isSigner: false, isWritable: true },
+      { pubkey: callerPubkey, isSigner: true, isWritable: true },
+    ],
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = callerPubkey;
+
+  let txSignature = "";
+  if (provider.signAndSendTransaction) {
+    const res = await provider.signAndSendTransaction(transaction);
+    txSignature = res.signature || res.toString();
+  } else if (provider.sendTransaction) {
+    txSignature = await provider.sendTransaction(transaction, connection);
+  } else {
+    throw new Error("Connected wallet does not support signing.");
+  }
+
+  await connection.confirmTransaction(txSignature, "confirmed");
+  return txSignature;
+}
+

@@ -87,6 +87,13 @@ export default function GigDetailPage() {
     setIsReviewModalOpen(false);
   };
 
+  const handleDisputed = (_gigId: string, _txSig: string) => {
+    setCurrentGig((prev) => prev ? ({
+      ...prev,
+      status: "Disputed",
+    }) : null);
+  };
+
   const handlePlaceOrder = async () => {
     if (!connected || !walletAddress) {
       setIsModalOpen(true);
@@ -96,7 +103,7 @@ export default function GigDetailPage() {
     setTrading(true);
     try {
       const win = window as any;
-      const provider = win.phantom?.solana || win.solflare || win.solana;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
       if (!provider) throw new Error("No Solana wallet detected.");
 
       const rawId = parseInt(gigId.replace(/[^0-9]/g, ""), 10) || 1;
@@ -173,7 +180,17 @@ export default function GigDetailPage() {
               <span className="mono" style={{ fontSize: "0.68rem", padding: "2px 8px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", color: "#fff", display: "flex", alignItems: "center", gap: "5px" }}>
                 {getFormatIcon(currentGig.category)} {currentGig.category}
               </span>
-              <span className="mono" style={{ fontSize: "0.68rem", padding: "2px 8px", borderRadius: "4px", background: "rgba(16, 185, 129, 0.1)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+              <span
+                className="mono"
+                style={{
+                  fontSize: "0.68rem",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  background: currentGig.status === "Disputed" ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.1)",
+                  color: currentGig.status === "Disputed" ? "#ef4444" : "#10b981",
+                  border: currentGig.status === "Disputed" ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(16, 185, 129, 0.25)",
+                }}
+              >
                 {currentGig.status.toUpperCase()}
               </span>
               <span className="mono" style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.45)" }}>
@@ -282,6 +299,30 @@ export default function GigDetailPage() {
                     onClick={() => setIsReviewModalOpen(true)}
                   >
                     <ShieldCheck size={16} /> INSPECT DELIVERABLE & RELEASE FUNDS
+                  </button>
+                )}
+
+                {currentGig.status === "Disputed" && (
+                  <button
+                    className="mono"
+                    style={{
+                      width: "100%",
+                      padding: "0.85rem",
+                      fontSize: "0.9rem",
+                      background: "rgba(239, 68, 68, 0.15)",
+                      color: "#ef4444",
+                      fontWeight: 700,
+                      border: "1px solid rgba(239, 68, 68, 0.35)",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                    onClick={() => setIsReviewModalOpen(true)}
+                  >
+                    <AlertTriangle size={16} /> INSPECT DISPUTE & ESCROW AUDIT
                   </button>
                 )}
 
@@ -428,6 +469,7 @@ export default function GigDetailPage() {
         gig={currentGig}
         onClose={() => setIsReviewModalOpen(false)}
         onSettled={handleSettled}
+        onDisputed={handleDisputed}
       />
 
       {/* Footer */}

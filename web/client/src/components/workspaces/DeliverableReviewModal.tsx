@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { X, ExternalLink, ShieldCheck, CheckCircle2, AlertTriangle, Loader2, Award, FileCode, Figma, BookOpen, Database, Zap } from "lucide-react";
+import { X, ExternalLink, ShieldCheck, CheckCircle2, AlertTriangle, Loader2, Award, FileCode, Figma, BookOpen, Database, Zap, Lock } from "lucide-react";
 import { useFlintWallet } from "@/contexts/WalletContext";
-import { settleEscrowOnChain, calculateEscrowFeeSplit, PROTOCOL_TREASURY_PDA } from "@/lib/flint-escrow-client";
+import { settleEscrowOnChain, raiseDisputeOnChain, calculateEscrowFeeSplit, PROTOCOL_TREASURY_PDA } from "@/lib/flint-escrow-client";
 import { PublicKey } from "@solana/web3.js";
 
 interface DeliverableReviewModalProps {
@@ -9,6 +9,7 @@ interface DeliverableReviewModalProps {
   gig: any;
   onClose: () => void;
   onSettled: (gigId: string, txSignature: string) => void;
+  onDisputed?: (gigId: string, txSignature: string) => void;
 }
 
 export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
@@ -16,12 +17,14 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
   gig,
   onClose,
   onSettled,
+  onDisputed,
 }) => {
   const { walletAddress, connected, setIsModalOpen } = useFlintWallet();
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [errorText, setErrorText] = useState<string | null>(null);
   const [disputeNote, setDisputeNote] = useState(false);
+  const [disputeTx, setDisputeTx] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
 
   if (!isOpen || !gig) return null;
@@ -33,6 +36,24 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
 
   const budgetSol = parseFloat(String(gig.budget || "").replace(/[^0-9.]/g, "")) || 0;
   const feeSplit = calculateEscrowFeeSplit(budgetSol);
+
+  // Authority checks: ONLY the gig creator (client) can approve and release funds.
+  const isClient = Boolean(
+    connected &&
+    walletAddress &&
+    gig.client &&
+    walletAddress.toLowerCase() === gig.client.toLowerCase()
+  );
+
+  const isFreelancer = Boolean(
+    connected &&
+    walletAddress &&
+    gig.freelancer &&
+    walletAddress.toLowerCase() === gig.freelancer.toLowerCase()
+  );
+
+  const canDispute = isClient || isFreelancer;
+  const isDisputed = gig.status === "Disputed" || disputeNote;
 
   const getFormatIcon = () => {
     if (deliverableType.includes("Figma") || gig.category === "DESIGN") return <Figma size={18} color="#FF6B00" />;
@@ -48,13 +69,18 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
       return;
     }
 
+    if (!isClient) {
+      setErrorText(`Authority check: Only the gig creator (${gig.client ? `${gig.client.slice(0, 4)}...${gig.client.slice(-4)}` : "Client"}) can approve deliverable and release escrow vault funds.`);
+      return;
+    }
+
     setLoading(true);
     setErrorText(null);
     setStatusText("Preparing L1 vault release transaction...");
 
     try {
       const win = window as any;
-      const provider = win.phantom?.solana || win.solflare || win.solana;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
       if (!provider) throw new Error("No Solana browser wallet detected.");
 
       const gigEscrowPda = gig.pda;
@@ -78,7 +104,54 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
       onSettled(gig.id, sig);
     } catch (err: any) {
       console.error("Settlement failed:", err);
-      setErrorText(err?.message || "Settlement failed or rejected.");
+      setErrorText(err?.message || "Settlement failed or was rejected.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRaiseDispute = async () => {
+    if (!connected || !walletAddress) {
+      setIsModalOpen(true);
+      return;
+    }
+
+    if (!canDispute) {
+      setErrorText(`Only the gig creator (${gig.client ? `${gig.client.slice(0, 4)}...${gig.client.slice(-4)}` : "Client"}) or assigned builder can raise an escrow dispute.`);
+      return;
+    }
+
+    setLoading(true);
+    setErrorText(null);
+    setStatusText("Initiating on-chain dispute freeze transaction on Solana L1...");
+
+    try {
+      const win = window as any;
+      const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
+      if (!provider) throw new Error("No Solana browser wallet detected.");
+
+      const gigEscrowPda = gig.pda;
+      if (!gigEscrowPda) {
+        throw new Error("Gig does not have a valid on-chain escrow PDA on Devnet.");
+      }
+
+      setStatusText("Awaiting wallet signature to freeze escrow on Devnet...");
+      const callerPubkey = new PublicKey(walletAddress);
+
+      const sig = await raiseDisputeOnChain(
+        gigEscrowPda,
+        callerPubkey,
+        provider
+      );
+
+      setDisputeTx(sig);
+      setDisputeNote(true);
+      if (onDisputed) {
+        onDisputed(gig.id, sig);
+      }
+    } catch (err: any) {
+      console.error("Dispute failed:", err);
+      setErrorText(err?.message || "Dispute transaction failed or was rejected.");
     } finally {
       setLoading(false);
     }
@@ -300,6 +373,33 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
                 </div>
               </div>
 
+              {/* Creator & Authority Status Banner */}
+              {!isClient && (
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    background: isFreelancer ? "rgba(56, 189, 248, 0.08)" : "rgba(255, 255, 255, 0.04)",
+                    border: isFreelancer ? "1px solid rgba(56, 189, 248, 0.25)" : "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "6px",
+                    fontSize: "0.75rem",
+                    color: isFreelancer ? "#38bdf8" : "rgba(255, 255, 255, 0.7)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                  className="mono"
+                >
+                  <Lock size={14} style={{ flexShrink: 0, color: isFreelancer ? "#38bdf8" : "#888" }} />
+                  <div>
+                    {isFreelancer ? (
+                      <span>YOU ARE THE WORKER · Awaiting client approval ({gig.client ? `${gig.client.slice(0, 4)}...${gig.client.slice(-4)}` : "Client"}). You cannot release your own escrow.</span>
+                    ) : (
+                      <span>READ-ONLY INSPECTION · Created by {gig.client ? `${gig.client.slice(0, 4)}...${gig.client.slice(-4)}` : "creator"}. Only the gig creator can approve payout release.</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {errorText && (
                 <div style={{ padding: "8px 12px", background: "rgba(225, 29, 72, 0.15)", border: "1px solid rgba(225, 29, 72, 0.3)", borderRadius: "6px", color: "#f43f5e", fontSize: "0.75rem" }} className="mono">
                   {errorText}
@@ -313,64 +413,128 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
                 </div>
               )}
 
-              {disputeNote && (
+              {isDisputed && (
                 <div style={{ padding: "10px 12px", background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "6px", color: "#f59e0b", fontSize: "0.75rem" }}>
-                  <strong>Dispute Freeze Initiated:</strong> Escrow vault funds are locked on Solana L1. The Arbiter Quorum or decentralized oracle will review the cryptographic deliverable proof hash against original specifications.
+                  <strong>Dispute Freeze Active:</strong> Escrow vault funds are frozen on Solana L1. The Arbiter Quorum or decentralized oracle will review the deliverable proof hash against original specifications.
+                  {disputeTx && (
+                    <div style={{ marginTop: "6px" }}>
+                      <a
+                        href={`https://explorer.solana.com/tx/${disputeTx}?cluster=devnet`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mono"
+                        style={{ color: "#FF6B00", textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      >
+                        View On-Chain Dispute Tx ↗
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Action Buttons */}
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={handleApproveAndRelease}
-                  style={{
-                    width: "100%",
-                    padding: "0.8rem",
-                    borderRadius: "8px",
-                    background: loading ? "#555" : "#10b981",
-                    color: "#000",
-                    border: "none",
-                    fontWeight: 700,
-                    fontSize: "0.9rem",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                  }}
-                  className="mono"
-                >
-                  <Award size={16} />
-                  {loading ? "SETTLING ON-CHAIN..." : `APPROVE DELIVERABLE & RELEASE ${gig.budget}`}
-                </button>
+                {isClient ? (
+                  <button
+                    type="button"
+                    disabled={loading || Boolean(isDisputed)}
+                    onClick={handleApproveAndRelease}
+                    style={{
+                      width: "100%",
+                      padding: "0.8rem",
+                      borderRadius: "8px",
+                      background: loading || isDisputed ? "#333" : "#10b981",
+                      color: loading || isDisputed ? "rgba(255,255,255,0.4)" : "#000",
+                      border: "none",
+                      fontWeight: 700,
+                      fontSize: "0.9rem",
+                      cursor: loading || isDisputed ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                    }}
+                    className="mono"
+                  >
+                    <Award size={16} />
+                    {loading ? "SETTLING ON-CHAIN..." : isDisputed ? "ESCROW FROZEN IN DISPUTE" : `APPROVE DELIVERABLE & RELEASE ${gig.budget}`}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    style={{
+                      width: "100%",
+                      padding: "0.8rem",
+                      borderRadius: "8px",
+                      background: "rgba(255, 255, 255, 0.04)",
+                      color: "rgba(255, 255, 255, 0.35)",
+                      border: "1px dashed rgba(255, 255, 255, 0.12)",
+                      fontWeight: 600,
+                      fontSize: "0.82rem",
+                      cursor: "not-allowed",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                    }}
+                    className="mono"
+                  >
+                    <Lock size={14} />
+                    {isFreelancer ? "AWAITING CLIENT APPROVAL (WORKER CANNOT APPROVE)" : "ONLY GIG CREATOR CAN APPROVE RELEASE"}
+                  </button>
+                )}
 
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => setDisputeNote(true)}
-                  style={{
-                    width: "100%",
-                    padding: "0.6rem",
-                    borderRadius: "6px",
-                    background: "transparent",
-                    color: "rgba(255,255,255,0.45)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    fontSize: "0.75rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                  }}
-                  className="mono"
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#f43f5e")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
-                >
-                  <AlertTriangle size={13} />
-                  RAISE QUALITY DISPUTE / FREEZE ESCROW
-                </button>
+                {canDispute ? (
+                  <button
+                    type="button"
+                    disabled={loading || Boolean(isDisputed)}
+                    onClick={handleRaiseDispute}
+                    style={{
+                      width: "100%",
+                      padding: "0.65rem",
+                      borderRadius: "6px",
+                      background: isDisputed ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.06)",
+                      color: isDisputed ? "#ef4444" : "#f43f5e",
+                      border: isDisputed ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(239, 68, 68, 0.25)",
+                      fontSize: "0.78rem",
+                      fontWeight: 600,
+                      cursor: loading || isDisputed ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      transition: "all 160ms var(--ease-out)",
+                    }}
+                    className="mono"
+                  >
+                    <AlertTriangle size={13} />
+                    {loading ? "SUBMITTING DISPUTE..." : isDisputed ? "DISPUTE ACTIVE · ESCROW FROZEN ON L1" : "RAISE QUALITY DISPUTE / FREEZE ESCROW"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    style={{
+                      width: "100%",
+                      padding: "0.6rem",
+                      borderRadius: "6px",
+                      background: "transparent",
+                      color: "rgba(255, 255, 255, 0.25)",
+                      border: "1px solid rgba(255, 255, 255, 0.06)",
+                      fontSize: "0.72rem",
+                      cursor: "not-allowed",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                    }}
+                    className="mono"
+                  >
+                    <AlertTriangle size={12} />
+                    DISPUTES RESTRICTED TO CLIENT OR WORKER
+                  </button>
+                )}
               </div>
             </div>
           )}

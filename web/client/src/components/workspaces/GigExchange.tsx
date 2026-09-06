@@ -117,6 +117,12 @@ export function GigExchange() {
     setSelectedGigForReview(null);
   };
 
+  const handleDisputed = (gigId: string, _txSig: string) => {
+    setGigList((prev) =>
+      prev.map((g) => (g.id === gigId ? { ...g, status: "Disputed" as const } : g))
+    );
+  };
+
   const handleGigCreated = (result: EscrowTxResult, gigData: any) => {
     saveGigMetadata(result.gigId, result.gigEscrowPda, {
       title: gigData.title,
@@ -269,6 +275,27 @@ export function GigExchange() {
                         VIEW SETTLED <ExternalLink size={12} />
                       </button>
                     )}
+                    {gig.status === "Disputed" && (
+                      <button
+                        className="mono"
+                        style={{
+                          background: "rgba(239, 68, 68, 0.15)",
+                          color: "#ef4444",
+                          border: "1px solid rgba(239, 68, 68, 0.35)",
+                          fontWeight: 700,
+                          padding: "6px 12px",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          fontSize: "0.75rem",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                        onClick={() => setSelectedGigForReview(gig)}
+                      >
+                        INSPECT DISPUTE
+                      </button>
+                    )}
                   </div>
                 </article>
               );
@@ -361,6 +388,7 @@ export function GigExchange() {
         gig={selectedGigForReview}
         onClose={() => setSelectedGigForReview(null)}
         onSettled={handleSettled}
+        onDisputed={handleDisputed}
       />
     </section>
   );

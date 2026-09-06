@@ -144,6 +144,7 @@ export async function fetchOnChainGigs(): Promise<Gig[]> {
 
       let uiStatus: Gig["status"] = "Accepting";
       if (decoded.status === "Completed") uiStatus = "Funded";
+      else if (decoded.status === "Disputed") uiStatus = "Disputed";
       else if (decoded.status === "Reviewing" || decoded.status === "InProgress") uiStatus = "Reviewing";
 
       const meta =

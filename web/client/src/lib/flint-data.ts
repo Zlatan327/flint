@@ -14,7 +14,7 @@ export type Gig = {
   deadline: string;
   submissions: number;
   verification: string;
-  status: "Accepting" | "Reviewing" | "Funded";
+  status: "Accepting" | "Reviewing" | "Funded" | "Disputed";
   deliverableType?: DeliverableType;
   deliverableUrl?: string;
   deliverableNotes?: string;
