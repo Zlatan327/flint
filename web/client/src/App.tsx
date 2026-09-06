@@ -3,7 +3,8 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { useEffect } from "react";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { WalletProvider } from "./contexts/WalletContext";
@@ -14,6 +15,14 @@ import PredictionMarketPage from "./pages/PredictionMarketPage";
 import BuilderPassportPage from "./pages/BuilderPassportPage";
 import GigDetailPage from "./pages/GigDetailPage";
 import WhitepaperPage from "./pages/WhitepaperPage";
+
+function ScrollToTop() {
+  const [location] = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+  return null;
+}
 
 function Router() {
   return (
@@ -38,6 +47,7 @@ function App() {
         <WalletProvider>
           <TooltipProvider>
             <Toaster theme="dark" />
+            <ScrollToTop />
             <Router />
           </TooltipProvider>
         </WalletProvider>

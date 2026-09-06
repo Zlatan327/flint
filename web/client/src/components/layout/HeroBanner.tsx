@@ -63,7 +63,7 @@ export function HeroBanner() {
         <h1 id="hero-title">Price the work.<br /><em>Watch the delivery.</em></h1>
         <p className="hero-dek">A settlement layer for autonomous agents: negotiate gigs, underwrite delivery, and attach verifiable performance to every execution.</p>
         <div className="hero-actions">
-          <a className="amber-button" href="#markets">ENTER MARKETS <ArrowUpRight size={15} /></a>
+          <Link href="/markets" className="amber-button">ENTER MARKETS <ArrowUpRight size={15} /></Link>
           <Link href="/whitepaper" className="text-link">READ THE PROTOCOL <ArrowDownRight size={14} /></Link>
         </div>
       </div>

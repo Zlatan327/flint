@@ -44,7 +44,7 @@ export default function Home() {
       </main>
       <footer className="site-footer">
         <div className="footer-brand"><span className="brand-mark brand-mark-small" aria-hidden="true"><span className="brand-mark-cut" /></span><span className="brand-name">FLINT</span><span className="mono">PROTOCOL / V1</span></div>
-        <div className="footer-links"><a href="#protocol"><Shield size={13} /> TRUST LAYER</a><a href="#exchange"><Zap size={13} /> GIG EXCHANGE</a><a href="#markets"><Github size={13} /> PREDICTION BOOK</a></div>
+        <div className="footer-links"><Link href="/protocol"><Shield size={13} /> TRUST LAYER</Link><Link href="/exchange"><Zap size={13} /> GIG EXCHANGE</Link><Link href="/markets"><Github size={13} /> PREDICTION BOOK</Link></div>
         <a className="back-top mono" href="#top">BACK TO TOP <ChevronUp size={13} /></a>
       </footer>
     </div>

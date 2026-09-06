@@ -23,7 +23,28 @@ export default function PredictionMarketPage() {
             <p>See current bets, open YES or NO positions, and keep your available balance visible while gigs move through settlement.</p>
             <div className="category-actions"><a className="amber-button" href="#book">VIEW CURRENT BETS <ArrowDownLeft size={15} /></a><a className="outline-button" href="#positions">MY POSITIONS <ArrowUpRight size={15} /></a></div>
           </div>
-          <aside className="category-summary category-summary-market"><WalletCards size={16} /><span className="metric-label">AVAILABLE BALANCE</span><strong className="mono">{displayBalance}</strong><p>Open positions and market capital remain separate from worker escrow.</p><div className="category-summary-foot mono"><span>24 OPEN BOOKS</span><span>0.60 SOL STAKED</span></div></aside>
+          <aside className="category-summary category-summary-market">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <WalletCards size={16} color="#10b981" />
+                <span className="mono" style={{ fontSize: "10px", color: "#f0f0f0", letterSpacing: "0.06em", fontWeight: 600 }}>ROLLUP ORDERBOOK</span>
+              </div>
+              <span className="mono" style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "9px", color: "#10b981", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)", padding: "2px 6px", borderRadius: "3px" }}>
+                <span className="status-dot status-dot-live" style={{ width: "5px", height: "5px" }} /> SUB-10MS
+              </span>
+            </div>
+
+            <div style={{ margin: "auto 0" }}>
+              <span className="metric-label">AVAILABLE BALANCE</span>
+              <strong className="mono" style={{ display: "block" }}>{displayBalance}</strong>
+              <p>Open positions and market capital remain separate from worker escrow.</p>
+            </div>
+
+            <div className="category-summary-foot mono">
+              <span>24 OPEN BOOKS</span>
+              <span>0.60 SOL STAKED</span>
+            </div>
+          </aside>
         </header>
         <div id="book"><PredictionMarket /></div>
         <div className="market-support-grid" id="positions"><SBTPanel /><ProtocolStrip /></div>
