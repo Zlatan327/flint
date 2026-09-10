@@ -1,5 +1,3 @@
-import time
-import json
 import logging
 import asyncio
 from typing import Dict, Any
@@ -9,7 +7,6 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../sdk-python")))
 
-from solana.rpc.async_api import AsyncClient
 from solana.rpc.websocket_api import connect
 from solders.pubkey import Pubkey
 
@@ -66,13 +63,19 @@ class FlintAgentIndexer:
         signature = msg.result.value.signature
         
         for log in logs:
+            try:
+                gig_id_str = log.split("Gig #")[1].split()[0]
+                gig_id = int(gig_id_str)
+            except (IndexError, ValueError):
+                gig_id = 401
+
             if "Flint: Gig #" in log and "initialized" in log:
                 # E.g. "Program log: Flint: Gig #401 initialized for 3500000000 lamports"
                 logging.info(f"EVENT [Tx: {signature[:8]}]: {log}")
-                self.handle_gig_created({"gig_id": 401, "budget_sol": 3.5, "required_skills": ["Anchor", "Rust"]})
+                self.handle_gig_created({"gig_id": gig_id, "budget_sol": 3.5, "required_skills": ["Anchor", "Rust"]})
             elif "delegated to MagicBlock Ephemeral Rollup" in log:
                 logging.info(f"EVENT [Tx: {signature[:8]}]: {log}")
-                self.handle_er_delegation(gig_id=401)
+                self.handle_er_delegation(gig_id=gig_id)
             elif "settled to L1" in log:
                 logging.info(f"EVENT [Tx: {signature[:8]}]: {log}")
 

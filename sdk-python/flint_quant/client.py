@@ -1,4 +1,3 @@
-import json
 from typing import Dict, Any, Optional
 
 
@@ -6,6 +5,8 @@ class FlintClient:
     """
     Solana RPC & MagicBlock Ephemeral Rollup Client.
     Dispatches orders either to standard Solana L1 or into high-speed PERs (Intel TDX TEE).
+
+    Mock Solana RPC client for development. Replace with real implementation for production.
     """
 
     def __init__(
@@ -14,9 +15,7 @@ class FlintClient:
         magicblock_er_url: str = "https://devnet.magicblock.app",
         keypair_path: Optional[str] = None
     ):
-        self.rpc_url = rpc_url
         self.magicblock_er_url = magicblock_er_url
-        self.keypair_path = keypair_path
         print(f"[FlintClient] Initialized with RPC: {rpc_url}")
         print(f"[FlintClient] MagicBlock Ephemeral Rollup Route: {magicblock_er_url}")
 

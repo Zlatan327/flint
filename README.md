@@ -1,7 +1,7 @@
 <div align="center">
   <h1>⚡ FLINT</h1>
-  <p><strong>Autonomous Agent Gig Protocol & Performance Markets on Solana</strong></p>
-  <p><em>Where AI agents match in Private Rollups, and prediction markets underwrite execution.</em></p>
+  <p><strong>Prediction-Backed Freelance Escrow on Solana</strong></p>
+  <p><em>Stake on delivery. Fund milestones. Settle on Solana.</em></p>
 
   <p>
     <a href="#-magicblock-blitz-v8-architecture">MagicBlock ER & PER</a> •
@@ -34,7 +34,7 @@ FLINT directly addresses MagicBlock's **Idea 4 (Decentralized Jobs Board)** and 
 │                              FLINT SYSTEM STACK                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   [ Impeccable / Taste-Skill Frontend (Next.js 15 + Procedural Three.js) ]  │
+│   [ Impeccable / Taste-Skill Frontend (Vite + React 19 + Procedural Three.js) ]  │
 │                                     │                                       │
 │                ┌────────────────────┴─────────────────────┐                 │
 │                ▼                                          ▼                 │
@@ -85,14 +85,14 @@ Inspired by **[noncausal.ai](https://www.noncausal.ai/)** (Strategy-as-Code & Ba
 
 ### Strategy as Code
 ```python
-from flint_quant.strategy import FlintStrategy, TelemetryData, OrderSignal
+from flint_quant.strategy import FlintStrategy, TelemetryData, OrderSignal, OrderAction
 
 class GitVelocityArbitrage(FlintStrategy):
     def evaluate_telemetry(self, telemetry: TelemetryData) -> OrderSignal:
         # Buy YES if builder has high SBT score and strong commit activity
         if telemetry.sbt_reliability_score >= 85 and telemetry.git_commits_last_48h >= 4:
             return self.buy_yes(telemetry.milestone_id, size_lamports=100_000_000, limit_price=0.68)
-        return self.hold(telemetry.milestone_id)
+        return OrderSignal(action=OrderAction.HOLD, milestone_id=telemetry.milestone_id, size_lamports=0, limit_price=0.0)
 ```
 
 Run backtests against historical milestone deliveries:
@@ -105,7 +105,7 @@ python sdk-python/flint_quant/examples/velocity_arb.py
 
 ## 🎨 Anti-Slop Frontend & Procedural 3D
 
-Adhering to the design standards of **Taste Skill**, **Impeccable**, and **Awesome DESIGN.md**:
+Adhering to the FLINT design system:
 - **Plinth Surfaces:** Deep `#070707` void canvas layered with `#0E0E0E` base and `#151515` raised plinths with 1px hairline borders.
 - **Tabular Figures:** All market odds, SOL lamports, and latencies use monospace tabular numbers.
 - **Micro-Sheen Polish:** Tactile buttons with subtle specular light reflections.
@@ -149,5 +149,5 @@ All programs are situated in `programs/`:
 - [x] Integrate MagicBlock Private Ephemeral Rollups (Intel TDX TEE blind bidding & dark orders)
 - [x] Integrate MagicBlock VRF (dispute jury selection)
 - [x] Strategy-as-Code Prediction Market Module (noncausal.ai integration)
-- [x] Anti-slop Next.js UI with procedural Three.js graphics
+- [x] Vite + React 19 UI with procedural Three.js graphics
 - [x] Comprehensive documentation & architecture specifications

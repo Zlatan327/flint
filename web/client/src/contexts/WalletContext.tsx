@@ -46,7 +46,7 @@ const getWalletConnectModal = (): WalletConnectModal | null => {
       chains: ["solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"],
       themeMode: "dark",
       themeVariables: {
-        "--wcm-accent-color": "#3B99FC",
+        "--wcm-accent-color": "#FF6B00",
         "--wcm-background-color": "#0a0c10",
         "--wcm-z-index": "99999",
       },

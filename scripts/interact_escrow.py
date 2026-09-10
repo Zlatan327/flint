@@ -8,8 +8,6 @@ Demonstrates end-to-end lifecycle:
 4. Confirm on Solana Devnet with Explorer links
 """
 
-import os
-import sys
 import time
 import json
 import struct
@@ -27,8 +25,6 @@ from solders.system_program import ID as SYSTEM_PROGRAM_ID
 
 # Deployed FLINT Program Addresses on Devnet
 ESCROW_PROGRAM_ID = Pubkey.from_string("2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h")
-REPUTATION_PROGRAM_ID = Pubkey.from_string("J6JQJBVYB1ercx1rexHhAYYStaGWhx51YnEgbcr8AAWg")
-MARKET_PROGRAM_ID = Pubkey.from_string("95ZEnzPdUE1bmF1oF2qjrYaGYPKyeeEmyz8h2xRgJ7e3")
 
 DEVNET_RPC = "https://api.devnet.solana.com"
 
@@ -68,13 +64,11 @@ async def main():
     total_amount_lamports = 10_000_000  # 0.01 SOL
     milestones_count = 2
     deadline = int(time.time()) + (7 * 86400)  # 7 days
-    freelancer = Keypair().pubkey()  # Target freelancer address
 
     print("\n--- GIG ESCROW PARAMETERS ---")
     print(f"Gig ID:              #{gig_id}")
     print(f"Total Amount:        {total_amount_lamports / 1_000_000_000:.3f} SOL ({total_amount_lamports} lamports)")
     print(f"Milestones:          {milestones_count}")
-    print(f"Freelancer:          {freelancer}")
     print(f"Escrow Program ID:   {ESCROW_PROGRAM_ID}")
 
     # Derive PDAs

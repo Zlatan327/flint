@@ -32,9 +32,9 @@ pub mod flint_reputation {
         let passport = &mut ctx.accounts.passport;
         let sbt = &mut ctx.accounts.sbt_record;
 
-        // Security Patch SEC-02: Validate that authority is the builder or authorized signer
+        // Security Patch SEC-02: Validate that authority is NOT the builder (prevent self-minting)
         require!(
-            ctx.accounts.authority.key() == passport.builder,
+            ctx.accounts.authority.key() != passport.builder,
             ReputationError::Unauthorized
         );
 

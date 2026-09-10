@@ -12,6 +12,8 @@ export default function BuilderPassportPage() {
   const [passport, setPassport] = useState<BuilderPassportData>(() => createEmptyPassport(walletAddress || undefined));
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => { document.title = "Builder Passport | FLINT"; }, []);
+
   useEffect(() => {
     let isMounted = true;
     async function loadPassport() {

@@ -43,7 +43,11 @@ if __name__ == "__main__":
         sbt_reliability_score=94,
         primary_skills=["Rust", "Anchor", "MagicBlock", "Solana"],
         total_completed_gigs=16,
-        github_verified=True
+        github_verified=True,
+        wallet_age_days=720,
+        onchain_protocol_interactions=["Marinade", "Jupiter", "Tensor", "MagicBlock"],
+        linkedin_verified=True,
+        linkedin_experience_years=5
     )
     scout = ScoutAgent(builder)
     proposal = scout.generate_blind_proposal({"id": 401, "required_skills": ["Rust", "Anchor"], "budget_sol": 3.5})

@@ -2,8 +2,10 @@
 
 import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { Link } from "wouter";
+import { useEffect } from "react";
 
 export default function NotFound() {
+  useEffect(() => { document.title = "404 | FLINT"; }, []);
   return (
     <main className="flint-app" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "24px" }}>
       <section style={{ width: "min(100%, 520px)", border: "1px solid rgba(255,255,255,0.1)", background: "#0E0E0E", padding: "28px" }}>

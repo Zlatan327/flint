@@ -33,7 +33,6 @@ export function TopBar() {
           <span className="brand-mark-cut" />
         </span>
         <span className="brand-name">FLINT</span>
-        <span className="brand-subtitle">PREDICTION PROTOCOL</span>
       </Link>
 
       <nav className={`topbar-nav ${menuOpen ? "topbar-nav-open" : ""}`} aria-label="Primary navigation">

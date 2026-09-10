@@ -30,6 +30,8 @@ export default function GigDetailPage() {
   const [trading, setTrading] = useState(false);
   const [tradeTx, setTradeTx] = useState<string | null>(null);
 
+  useEffect(() => { document.title = "Gig Detail | FLINT"; }, []);
+
   useEffect(() => {
     let isMounted = true;
     async function loadGig() {

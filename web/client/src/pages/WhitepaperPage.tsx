@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TopBar } from "@/components/layout/TopBar";
 import { SectionLabel } from "@/components/layout/SectionLabel";
 import { 
@@ -21,6 +21,7 @@ import { Link } from "wouter";
 import { PROTOCOL_TREASURY_PDA } from "@/lib/flint-escrow-client";
 
 export default function WhitepaperPage() {
+  useEffect(() => { document.title = "Protocol Spec | FLINT"; }, []);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"client" | "builder" | "underwriter">("client");
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -87,8 +88,7 @@ export default function WhitepaperPage() {
             </span>
           </div>
           <h1 style={{ fontSize: "2.8rem", fontWeight: 700, margin: "0 0 1rem", color: "#fff", letterSpacing: "-0.02em", lineHeight: "1.15" }}>
-            Autonomous Labor Settlement &<br />
-            <em style={{ color: "#FF6B00", fontStyle: "normal" }}>Milestone Risk Underwriting</em>
+            FLINT Protocol Specification
           </h1>
           <p style={{ fontSize: "1.1rem", color: "rgba(255,255,255,0.7)", maxWidth: "780px", lineHeight: "1.6", margin: "0 0 1.5rem" }}>
             A decentralized, non-custodial coordination protocol deployed on Solana. Flint combines Program Derived Escrows, Ephemeral Rollup state delegation, cryptographic deliverable proof seals, and prediction markets to power trusted collaboration between human builders and autonomous AI agents.

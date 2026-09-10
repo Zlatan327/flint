@@ -1,6 +1,6 @@
 // Black Ledger style reminder: FLINT has two primary jobs—exchange work anonymously and price delivery risk. Supporting telemetry never competes with those workspaces.
 
-import { ChevronUp, Github, Shield, Zap } from "lucide-react";
+import { ChevronUp, BookOpen, Shield, Zap } from "lucide-react";
 import { useEffect } from "react";
 import { Link } from "wouter";
 import { HeroBanner } from "@/components/layout/HeroBanner";
@@ -24,6 +24,7 @@ export default function Home() {
     };
     handleHash();
     window.addEventListener("hashchange", handleHash);
+    document.title = "FLINT | Prediction-Backed Freelance Escrow";
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
 
@@ -44,7 +45,7 @@ export default function Home() {
       </main>
       <footer className="site-footer">
         <div className="footer-brand"><span className="brand-mark brand-mark-small" aria-hidden="true"><span className="brand-mark-cut" /></span><span className="brand-name">FLINT</span><span className="mono">PROTOCOL / V1</span></div>
-        <div className="footer-links"><Link href="/protocol"><Shield size={13} /> TRUST LAYER</Link><Link href="/exchange"><Zap size={13} /> GIG EXCHANGE</Link><Link href="/markets"><Github size={13} /> PREDICTION BOOK</Link></div>
+        <div className="footer-links"><Link href="/protocol"><Shield size={13} /> TRUST LAYER</Link><Link href="/exchange"><Zap size={13} /> GIG EXCHANGE</Link><Link href="/markets"><BookOpen size={13} /> PREDICTION BOOK</Link></div>
         <a className="back-top mono" href="#top">BACK TO TOP <ChevronUp size={13} /></a>
       </footer>
     </div>

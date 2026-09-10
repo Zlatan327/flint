@@ -133,7 +133,7 @@ pub mod flint_market {
             (position.no_shares, market.no_pool, market.yes_pool)
         };
 
-        // Pro-rata payout calculation with zero-winner refund protection (SEC-08)
+        // Pro-rata payout calculation with zero-winner refund protection (SEC-08/SEC-04)
         let total_pot = total_winning_pool.saturating_add(total_losing_pool);
         let gross_payout = if total_winning_pool > 0 {
             require!(shares > 0, MarketError::NoWinningShares);
@@ -142,7 +142,7 @@ pub mod flint_market {
                 .checked_div(total_winning_pool as u128)
                 .unwrap_or(0) as u64
         } else {
-            // Refund principal if 0 traders bet on the winning outcome
+            // SEC-04 Fix: No winners. Calculate total shares to forfeit to treasury.
             let total_shares = position.yes_shares.saturating_add(position.no_shares);
             require!(total_shares > 0, MarketError::NoWinningShares);
             total_shares
@@ -152,11 +152,15 @@ pub mod flint_market {
         position.yes_shares = 0;
         position.no_shares = 0;
 
-        // Calculate 1.0% (100 BPS) underwriter market rake
-        let market_rake = (gross_payout as u128)
-            .saturating_mul(MARKET_RAKE_BPS as u128)
-            .checked_div(10_000)
-            .unwrap_or(0) as u64;
+        // Calculate 1.0% (100 BPS) underwriter market rake or 100% if no winners
+        let market_rake = if total_winning_pool > 0 {
+            (gross_payout as u128)
+                .saturating_mul(MARKET_RAKE_BPS as u128)
+                .checked_div(10_000)
+                .unwrap_or(0) as u64
+        } else {
+            gross_payout // Sweep everything to treasury
+        };
         let trader_net = gross_payout.saturating_sub(market_rake);
 
         // Disburse earned lamports from market vault to trader and treasury

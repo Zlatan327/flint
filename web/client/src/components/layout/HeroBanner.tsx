@@ -59,7 +59,7 @@ export function HeroBanner() {
         <div className="hero-art-readout mono"><span>FIELD / L1</span><span>REACTOR / NOMINAL</span></div>
       </div>
       <div className="hero-copy">
-        <SectionLabel code="FLINT / 001" tone="amber">Software Delivery Risk Market</SectionLabel>
+        <SectionLabel code="FLINT / 001 · PREDICTION-BACKED ESCROW" tone="amber">PREDICTION-BACKED ESCROW</SectionLabel>
         <h1 id="hero-title">Trade delivery risk.<br /><em>Underwrite real code.</em></h1>
         <p className="hero-dek">Prediction markets on Solana Devnet for real software delivery. Stake capital on whether pull requests merge on time, test benchmarks pass, and agents finish bounties to standard.</p>
         <div className="hero-actions">

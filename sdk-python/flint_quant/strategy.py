@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from enum import Enum
 
 
@@ -45,8 +45,6 @@ class FlintStrategy:
     def __init__(self, name: str, capital_budget_lamports: int = 1_000_000_000):
         self.name = name
         self.capital_budget = capital_budget_lamports
-        self.allocated_capital = 0
-        self.positions: Dict[int, Dict[str, Any]] = {}
 
     def evaluate_telemetry(self, telemetry: TelemetryData) -> Optional[OrderSignal]:
         """

@@ -1,6 +1,5 @@
-import math
 import random
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .strategy import FlintStrategy, OrderAction, TelemetryData
 
 
@@ -48,7 +47,10 @@ class MilestoneBacktester:
                 hours_remaining=round(hours_remaining, 1),
                 current_yes_price=market_yes_price,
                 current_no_price=market_no_price,
-                is_private_er_active=True
+                is_private_er_active=True,
+                linkedin_verified=random.random() > 0.3,
+                wallet_age_days=random.randint(30, 900),
+                onchain_protocol_interactions=random.randint(0, 8)
             )
             dataset.append({
                 "telemetry": telemetry,

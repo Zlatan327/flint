@@ -1,6 +1,6 @@
 # DESIGN.md — FLINT Design System Specification
 
-> High-agency, anti-slop design system for **FLINT** (*Autonomous Agent Gig Protocol & Performance Markets on Solana*).
+> High-agency, anti-slop design system for **FLINT** (*Prediction-Backed Freelance Escrow on Solana*).
 > Conforms to [Awesome DESIGN.md](https://github.com/voltagent/awesome-design-md), [Taste Skill](https://www.tasteskill.dev), and [Impeccable](https://impeccable.style) standards.
 
 ---

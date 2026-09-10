@@ -1,8 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use flint_reputation::cpi::accounts::RecordCompletion;
 use flint_reputation::program::FlintReputation;
-use flint_reputation::BuilderPassport;
 
 declare_id!("2PQbtiG8dxUqr2jSX1RfxiJnXutndhGkHm9k4YrKQD6h");
 
@@ -203,24 +201,38 @@ pub mod flint_escrow {
             .unwrap_or(0) as u64;
         let freelancer_payout = payout.saturating_sub(protocol_fee);
 
-        // Transfer earned lamports from vault to freelancer and treasury
-        **ctx.accounts.vault.try_borrow_mut_lamports()? = ctx
-            .accounts
-            .vault
-            .lamports()
-            .saturating_sub(payout);
-        **ctx.accounts.freelancer.try_borrow_mut_lamports()? = ctx
-            .accounts
-            .freelancer
-            .lamports()
-            .saturating_add(freelancer_payout);
+        // Safe transfer: Vault is a PDA owned by SystemProgram, so we must use invoke_signed.
+        let gig_escrow_key = gig.key();
+        let vault_bump = ctx.bumps.vault;
+        let vault_seeds = &[b"vault", gig_escrow_key.as_ref(), &[vault_bump]];
+        let signer = &[&vault_seeds[..]];
+
+        if freelancer_payout > 0 {
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.freelancer.to_account_info(),
+                    },
+                    signer,
+                ),
+                freelancer_payout,
+            )?;
+        }
 
         if protocol_fee > 0 {
-            **ctx.accounts.treasury.try_borrow_mut_lamports()? = ctx
-                .accounts
-                .treasury
-                .lamports()
-                .saturating_add(protocol_fee);
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.treasury.to_account_info(),
+                    },
+                    signer,
+                ),
+                protocol_fee,
+            )?;
         }
 
         gig.remaining_amount = 0;
@@ -234,12 +246,14 @@ pub mod flint_escrow {
                 passport: ctx.accounts.builder_passport.to_account_info(),
                 sbt_record: ctx.accounts.sbt_record.to_account_info(),
                 asset: ctx.accounts.core_asset.to_account_info(),
-                authority: ctx.accounts.freelancer.to_account_info(),
+                authority: ctx.accounts.signer.to_account_info(),
                 core_program: ctx.accounts.core_program.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
             };
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-            let _ = flint_reputation::cpi::record_gig_completion_sbt(cpi_ctx, gig.gig_id, freelancer_payout, delivered_on_time);
+            if let Err(e) = flint_reputation::cpi::record_gig_completion_sbt(cpi_ctx, gig.gig_id, freelancer_payout, delivered_on_time) {
+                msg!("Flint: SBT minting failed: {:?}. Settlement proceeds without reputation update.", e);
+            }
         }
 
         msg!(
@@ -293,17 +307,24 @@ pub mod flint_escrow {
         };
 
         // Disburse funds back to client from vault
+        // Safe transfer from SystemProgram-owned vault PDA
         if refund_amount > 0 {
-            **ctx.accounts.vault.try_borrow_mut_lamports()? = ctx
-                .accounts
-                .vault
-                .lamports()
-                .saturating_sub(refund_amount);
-            **ctx.accounts.client.try_borrow_mut_lamports()? = ctx
-                .accounts
-                .client
-                .lamports()
-                .saturating_add(refund_amount);
+            let gig_escrow_key = gig.key();
+            let vault_bump = ctx.bumps.vault;
+            let vault_seeds = &[b"vault", gig_escrow_key.as_ref(), &[vault_bump]];
+            let signer = &[&vault_seeds[..]];
+
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.client.to_account_info(),
+                    },
+                    signer,
+                ),
+                refund_amount,
+            )?;
         }
 
         gig.remaining_amount = 0;
