@@ -58,6 +58,22 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --radius: 0.15rem;
+
+  /* DESIGN.md token aliases */
+  --bg-void: #070707;
+  --surface-base: #0E0E0E;
+  --surface-raised: #151515;
+  --surface-overlay: #1D1D1D;
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --spark-amber: #FF6B00;
+  --spark-amber-muted: rgba(255, 107, 0, 0.12);
+  --rollup-emerald: #10B981;
+  --rollup-emerald-muted: rgba(16, 185, 129, 0.12);
+  --solana-purple: #9945FF;
+  --text-primary: #F5F5F5;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
 }
 
 @layer base {
@@ -2552,4 +2568,66 @@
   .category-summary { min-height: 130px; padding: 16px; }
   .category-summary strong { font-size: 20px; }
   .category-page .workspace-section { padding: 32px 16px; }
+}
+
+/* Mobile Responsive Audit Fixes */
+@media (max-width: 768px) {
+  body, .flint-app {
+    overflow-x: hidden;
+  }
+  
+  .topbar {
+    padding: 0 16px;
+    gap: 12px;
+  }
+  
+  .topbar-nav:not(.topbar-nav-open) {
+    display: none;
+  }
+  
+  .topbar-nav.topbar-nav-open {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 62px;
+    left: 0;
+    right: 0;
+    background: #070707;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.07));
+    z-index: 50;
+  }
+  
+  .mobile-menu {
+    display: inline-flex;
+  }
+
+  .hero-banner {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  
+  .hero-art {
+    display: none; /* Hide decorative 3D elements on small screens */
+  }
+  
+  .hero-copy {
+    padding: 32px 16px;
+  }
+  
+  .hero-copy h1 {
+    font-size: clamp(32px, 8vw, 48px);
+  }
+  
+  .hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .hero-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 16px;
+  }
 }

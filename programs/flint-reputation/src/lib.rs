@@ -159,3 +159,26 @@ pub enum ReputationError {
     #[msg("Caller is unauthorized to mint reputation or update passport")]
     Unauthorized,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    pub fn calculate_reliability_score(on_time_deliveries: u64, total_gigs_completed: u64) -> u8 {
+        if total_gigs_completed == 0 {
+            return 100;
+        }
+        (on_time_deliveries)
+            .saturating_mul(100)
+            .checked_div(total_gigs_completed)
+            .unwrap_or(100) as u8
+    }
+
+    #[test]
+    fn test_reliability_score_calculation() {
+        assert_eq!(calculate_reliability_score(5, 5), 100);
+        assert_eq!(calculate_reliability_score(0, 5), 0);
+        assert_eq!(calculate_reliability_score(4, 5), 80);
+        assert_eq!(calculate_reliability_score(3, 10), 30);
+    }
+}

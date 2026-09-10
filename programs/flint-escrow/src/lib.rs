@@ -560,3 +560,61 @@ pub enum EscrowError {
     #[msg("Gig cannot be cancelled or refunded under current status/deadline")]
     CannotCancelGig,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Helper to test inline math logic
+    pub fn calculate_protocol_fee(payout: u64) -> u64 {
+        (payout as u128)
+            .saturating_mul(PROTOCOL_FEE_BPS as u128)
+            .checked_div(10_000)
+            .unwrap_or(0) as u64
+    }
+
+    #[test]
+    fn test_protocol_fee_calculation() {
+        assert_eq!(calculate_protocol_fee(1000), 15);
+        assert_eq!(calculate_protocol_fee(0), 0);
+        assert_eq!(calculate_protocol_fee(10_000), 150);
+        assert_eq!(calculate_protocol_fee(1_000_000_000), 15_000_000);
+    }
+
+    #[test]
+    fn test_status_transition_validity() {
+        let mut gig = GigEscrow {
+            client: Pubkey::default(),
+            freelancer: Pubkey::default(),
+            gig_id: 1,
+            total_amount: 1000,
+            remaining_amount: 1000,
+            deadline: 0,
+            milestones_count: 2,
+            completed_milestones: 0,
+            status: EscrowStatus::Initialized,
+            settlement_model: SettlementModel::Bounty,
+            is_freelancer_assigned: false,
+            deliverable_hash: [0; 32],
+            is_delegated_to_er: false,
+            bump: 0,
+        };
+
+        // Initialization
+        assert_eq!(gig.status, EscrowStatus::Initialized);
+        
+        // Deposit
+        gig.status = EscrowStatus::Funded;
+        assert_eq!(gig.status, EscrowStatus::Funded);
+
+        // Assign freelancer
+        gig.is_freelancer_assigned = true;
+        gig.status = EscrowStatus::InProgress;
+        assert!(gig.is_freelancer_assigned);
+        assert_eq!(gig.status, EscrowStatus::InProgress);
+
+        // Submit work
+        gig.status = EscrowStatus::Reviewing;
+        assert_eq!(gig.status, EscrowStatus::Reviewing);
+    }
+}

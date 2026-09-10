@@ -325,3 +325,57 @@ pub enum MarketError {
     #[msg("Market betting window has expired")]
     MarketExpired,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    pub fn calculate_payout(shares: u64, total_winning_pool: u64, total_losing_pool: u64) -> (u64, u64) {
+        let total_pot = total_winning_pool.saturating_add(total_losing_pool);
+        let gross_payout = if total_winning_pool > 0 {
+            if shares == 0 { return (0, 0); }
+            (shares as u128)
+                .saturating_mul(total_pot as u128)
+                .checked_div(total_winning_pool as u128)
+                .unwrap_or(0) as u64
+        } else {
+            shares // zero winner refund protection total shares logic from instruction
+        };
+
+        let market_rake = if total_winning_pool > 0 {
+            (gross_payout as u128)
+                .saturating_mul(MARKET_RAKE_BPS as u128)
+                .checked_div(10_000)
+                .unwrap_or(0) as u64
+        } else {
+            gross_payout // Sweep everything to treasury
+        };
+        (gross_payout, market_rake)
+    }
+
+    #[test]
+    fn test_pro_rata_payout() {
+        let (gross, rake) = calculate_payout(100, 1000, 500);
+        // shares=100, win=1000, lose=500 -> total_pot=1500
+        // gross = 100 * 1500 / 1000 = 150
+        assert_eq!(gross, 150);
+        // rake = 150 * 100 / 10000 = 1
+        assert_eq!(rake, 1);
+    }
+
+    #[test]
+    fn test_rake_math() {
+        // Test exactly 1% rake
+        let (gross, rake) = calculate_payout(1000, 1000, 0);
+        assert_eq!(gross, 1000);
+        assert_eq!(rake, 10);
+    }
+
+    #[test]
+    fn test_zero_winner_edge_case() {
+        let (gross, rake) = calculate_payout(100, 0, 500);
+        // gross = shares (100) -> total rake becomes 100
+        assert_eq!(gross, 100);
+        assert_eq!(rake, 100);
+    }
+}
