@@ -12,7 +12,7 @@ export default function BuilderPassportPage() {
   const [passport, setPassport] = useState<BuilderPassportData>(() => createEmptyPassport(walletAddress || undefined));
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { document.title = "Builder Passport | FLINT"; }, []);
+  useEffect(() => { document.title = "Your Reputation | FLINT"; }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -145,7 +145,7 @@ export default function BuilderPassportPage() {
               <em style={{ color: "#FF6B00" }}>({shortAddress})</em>
             </h1>
             <p style={{ maxWidth: "680px", color: "rgba(255,255,255,0.65)", fontSize: "0.95rem" }}>
-              Permanent cryptographic performance passport. Soulbound tokens (SBTs) are minted atomically upon L1 escrow settlement and cannot be transferred, faked, or manipulated.
+              Your reputation, on-chain. Every completed gig is a verifiable credential you own — not locked inside a platform. Soulbound tokens (SBTs) are minted atomically upon L1 escrow settlement and cannot be transferred, faked, or manipulated.
             </p>
             <div className="category-actions" style={{ marginTop: "1.2rem" }}>
               <a

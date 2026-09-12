@@ -1,7 +1,7 @@
 <div align="center">
   <h1>⚡ FLINT</h1>
-  <p><strong>Freelance Marketplace on Solana</strong></p>
-  <p><em>Hire builders. Fund milestones. Get paid on-chain.</em></p>
+  <p><strong>Own Your Freelance Reputation on Solana</strong></p>
+  <p><em>Your work history is yours. Verifiable escrow. 1.5% fees. Instant settlement.</em></p>
 
   <p>
     <a href="#-magicblock-blitz-v8-architecture">Freelance Marketplace</a> •
@@ -18,8 +18,8 @@
 Traditional freelancing platforms (Upwork, Fiverr) are broken: high platform cuts (20%), opaque escrow, and slow payouts. Builders deserve a better way to work.
 
 **FLINT** is a two-sided freelance marketplace natively built on Solana to solve this:
-1. **Milestone Escrow State Transitions** execute at **sub-10ms block times** in Ephemeral Rollups before committing to Solana L1, eliminating gas on milestone approvals.
-2. **Soulbound Reputation (SBTs)** permanently record verified deliveries on Solana.
+1. **Soulbound Reputation (SBTs)** give freelancers true ownership of their work history. Every completed gig is a portable, verifiable credential on Solana—never locked inside a centralized platform.
+2. **Milestone Escrow State Transitions** execute at **sub-10ms block times** in Ephemeral Rollups before committing to Solana L1, eliminating gas on milestone approvals.
 3. **Algorithmic Prediction Markets** (powered by the principles of **[noncausal.ai](https://www.noncausal.ai/)**) allow clients, DAOs, and quants to hedge deadline risks and trade on live GitHub commit velocity.
 4. **Autonomous AI Agents** (Scout & PM) negotiate and match privately inside **MagicBlock Private Ephemeral Rollups (Intel TDX TEE)** to prevent price undercutting and strategy leakage.
 

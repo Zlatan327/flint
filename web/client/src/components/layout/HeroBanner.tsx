@@ -60,8 +60,8 @@ export function HeroBanner() {
       </div>
       <div className="hero-copy">
         <SectionLabel code="FLINT / 001 · FREELANCE MARKETPLACE" tone="amber">FREELANCE MARKETPLACE</SectionLabel>
-        <h1 id="hero-title">Hire builders.<br /><em>Get paid on-chain.</em></h1>
-        <p className="hero-dek">Milestone-based escrow on Solana. Fund work, track delivery, and build verifiable reputation — all on-chain.</p>
+        <h1 id="hero-title">Own your reputation.<br /><em>Get paid on-chain.</em></h1>
+        <p className="hero-dek">Your work history is yours — not locked inside a platform. Verifiable escrow, 1.5% fees, and instant settlement on Solana.</p>
         <div className="hero-actions">
           <Link href="/exchange" className="amber-button">BROWSE GIGS <ArrowDownRight size={14} /></Link>
           <Link href="/markets" className="text-link">EXPLORE RISK MARKETS <ArrowUpRight size={15} /></Link>

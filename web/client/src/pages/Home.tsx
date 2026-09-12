@@ -24,7 +24,7 @@ export default function Home() {
     };
     handleHash();
     window.addEventListener("hashchange", handleHash);
-    document.title = "FLINT | Hire & Get Paid on Solana";
+    document.title = "FLINT | Own Your Freelance Reputation";
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
 
