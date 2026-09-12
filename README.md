@@ -1,11 +1,11 @@
 <div align="center">
   <h1>⚡ FLINT</h1>
-  <p><strong>Prediction-Backed Freelance Escrow on Solana</strong></p>
-  <p><em>Stake on delivery. Fund milestones. Settle on Solana.</em></p>
+  <p><strong>Freelance Marketplace on Solana</strong></p>
+  <p><em>Hire builders. Fund milestones. Get paid on-chain.</em></p>
 
   <p>
-    <a href="#-magicblock-blitz-v8-architecture">MagicBlock ER & PER</a> •
-    <a href="#-noncausalai-prediction-layer">Noncausal Quant Engine</a> •
+    <a href="#-magicblock-blitz-v8-architecture">Freelance Marketplace</a> •
+    <a href="#-noncausalai-prediction-layer">Prediction Markets</a> •
     <a href="#-anti-slop-frontend--procedural-3d">Taste & Impeccable Design</a> •
     <a href="#-quickstart">Quickstart</a>
   </p>
@@ -15,13 +15,13 @@
 
 ## 🌟 The Vision
 
-Traditional freelancing platforms (Upwork, Fiverr) are broken: high platform cuts (20%), opaque escrow, and **zero risk pricing for missed deadlines**. Escrow locks money, but it cannot hedge project slip or prove real-time builder reliability.
+Traditional freelancing platforms (Upwork, Fiverr) are broken: high platform cuts (20%), opaque escrow, and slow payouts. Builders deserve a better way to work.
 
-**FLINT** is built natively for Solana to solve this:
-1. **Autonomous AI Agents** (Scout & PM) negotiate and match privately inside **MagicBlock Private Ephemeral Rollups (Intel TDX TEE)** to prevent price undercutting and strategy leakage.
-2. **Micro-Escrow State Transitions** execute at **sub-10ms block times** in Ephemeral Rollups before committing to Solana L1, eliminating gas on milestone approvals.
+**FLINT** is a two-sided freelance marketplace natively built on Solana to solve this:
+1. **Milestone Escrow State Transitions** execute at **sub-10ms block times** in Ephemeral Rollups before committing to Solana L1, eliminating gas on milestone approvals.
+2. **Soulbound Reputation (SBTs)** permanently record verified deliveries on Solana.
 3. **Algorithmic Prediction Markets** (powered by the principles of **[noncausal.ai](https://www.noncausal.ai/)**) allow clients, DAOs, and quants to hedge deadline risks and trade on live GitHub commit velocity.
-4. **Soulbound Reputation (SBTs)** permanently record verified deliveries on Solana.
+4. **Autonomous AI Agents** (Scout & PM) negotiate and match privately inside **MagicBlock Private Ephemeral Rollups (Intel TDX TEE)** to prevent price undercutting and strategy leakage.
 
 ---
 
@@ -125,21 +125,21 @@ npm run dev
 # Open http://localhost:3000
 ```
 
-### 2. Run the Noncausal Prediction Backtester
-```bash
-python sdk-python/flint_quant/examples/velocity_arb.py
-```
-
-### 3. Run Autonomous Agent Coordination
-```bash
-python agents/tee_bidding.py
-```
-
-### 4. Solana Anchor Programs
+### 2. Solana Anchor Programs
 All programs are situated in `programs/`:
 - `programs/flint-escrow` — Milestone escrow with MagicBlock ER delegation.
 - `programs/flint-market` — Prediction pools with PER dark pool support.
 - `programs/flint-reputation` — Soulbound Token (SBT) minting and rating PDAs.
+
+### 3. Run the Noncausal Prediction Backtester
+```bash
+python sdk-python/flint_quant/examples/velocity_arb.py
+```
+
+### 4. Run Autonomous Agent Coordination
+```bash
+python agents/tee_bidding.py
+```
 
 ---
 

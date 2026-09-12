@@ -24,7 +24,7 @@ export default function Home() {
     };
     handleHash();
     window.addEventListener("hashchange", handleHash);
-    document.title = "FLINT | Prediction-Backed Freelance Escrow";
+    document.title = "FLINT | Hire & Get Paid on Solana";
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
 
@@ -34,8 +34,8 @@ export default function Home() {
       <main>
         <HeroBanner />
         <div className="workspace-nav" aria-label="FLINT workspaces">
-          <Link href="/markets"><span className="workspace-nav-index mono">01</span><strong>PREDICTION MARKET</strong><span>Underwrite delivery risk & trade</span></Link>
-          <Link href="/exchange"><span className="workspace-nav-index mono">02</span><strong>GIG ESCROW</strong><span>Fund milestones & back markets</span></Link>
+          <Link href="/exchange"><span className="workspace-nav-index mono">01</span><strong>GIG ESCROW</strong><span>Fund milestones & back markets</span></Link>
+          <Link href="/markets"><span className="workspace-nav-index mono">02</span><strong>PREDICTION MARKET</strong><span>Underwrite delivery risk & trade</span></Link>
         </div>
         <div className="support-stage">
           <TelemetryRail />

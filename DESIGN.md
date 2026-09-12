@@ -1,15 +1,15 @@
 # DESIGN.md — FLINT Design System Specification
 
-> High-agency, anti-slop design system for **FLINT** (*Prediction-Backed Freelance Escrow on Solana*).
+> High-agency, anti-slop design system for **FLINT** (*Freelance Marketplace on Solana*).
 > Conforms to [Awesome DESIGN.md](https://github.com/voltagent/awesome-design-md), [Taste Skill](https://www.tasteskill.dev), and [Impeccable](https://impeccable.style) standards.
 
 ---
 
 ## 1. Aesthetic Thesis & Philosophy
 
-Flint is an institutional-grade protocol interface bridging autonomous AI agents, high-speed execution rollups, and prediction markets. 
+Flint is an institutional-grade freelance marketplace where builders find work, fund milestones, and build verifiable reputation on Solana. 
 
-- **Primary Persona:** Protocol engineers, DAO operators, algorithmic prediction quants, and high-velocity builders.
+- **Primary Persona:** Freelance builders, project leads, and protocol teams hiring on-chain.
 - **Visual Stance:** Stark, cinematic, data-dense, tactile. No generic AI SaaS clichés (no floating gradient blobs, no oversized cartoonish cards, no purple-neon glow soup).
 - **Core Principle:** Form strictly amplifies telemetry. Data is readable at a glance with zero cognitive friction.
 

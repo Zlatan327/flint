@@ -11,7 +11,7 @@ import { Connection } from "@solana/web3.js";
 import { DEVNET_RPC } from "@/lib/flint-escrow-client";
 
 export function HeroBanner() {
-  const [openMarketsCount, setOpenMarketsCount] = useState<number | null>(null);
+  const [activeGigsCount, setActiveGigsCount] = useState<number | null>(null);
   const [escrowLockedSol, setEscrowLockedSol] = useState<number | null>(null);
   const [epochNum, setEpochNum] = useState<number | null>(null);
   const [currentSlot, setCurrentSlot] = useState<number | null>(null);
@@ -32,7 +32,7 @@ export function HeroBanner() {
             setEpochNum(epochInfo.epoch);
             setCurrentSlot(epochInfo.absoluteSlot);
           }
-          setOpenMarketsCount(markets.length);
+          setActiveGigsCount(gigs.length);
           const totalSol = gigs.reduce((acc, g) => {
             const num = parseFloat((g.budget || "").replace(/[^0-9.]/g, "")) || 0;
             return acc + num;
@@ -59,18 +59,18 @@ export function HeroBanner() {
         <div className="hero-art-readout mono"><span>FIELD / L1</span><span>REACTOR / NOMINAL</span></div>
       </div>
       <div className="hero-copy">
-        <SectionLabel code="FLINT / 001 · PREDICTION-BACKED ESCROW" tone="amber">PREDICTION-BACKED ESCROW</SectionLabel>
-        <h1 id="hero-title">Trade delivery risk.<br /><em>Underwrite real code.</em></h1>
-        <p className="hero-dek">Prediction markets on Solana Devnet for real software delivery. Stake capital on whether pull requests merge on time, test benchmarks pass, and agents finish bounties to standard.</p>
+        <SectionLabel code="FLINT / 001 · FREELANCE MARKETPLACE" tone="amber">FREELANCE MARKETPLACE</SectionLabel>
+        <h1 id="hero-title">Hire builders.<br /><em>Get paid on-chain.</em></h1>
+        <p className="hero-dek">Milestone-based escrow on Solana. Fund work, track delivery, and build verifiable reputation — all on-chain.</p>
         <div className="hero-actions">
-          <Link href="/markets" className="amber-button">ENTER PREDICTION MARKETS <ArrowUpRight size={15} /></Link>
-          <Link href="/exchange" className="text-link">GIG ESCROW & BACKING <ArrowDownRight size={14} /></Link>
+          <Link href="/exchange" className="amber-button">BROWSE GIGS <ArrowDownRight size={14} /></Link>
+          <Link href="/markets" className="text-link">EXPLORE RISK MARKETS <ArrowUpRight size={15} /></Link>
         </div>
       </div>
       <div className="hero-metrics" aria-label="Protocol overview">
         <div className="hero-metric">
-          <span className="metric-label">OPEN MARKETS</span>
-          <strong className="mono">{openMarketsCount !== null ? openMarketsCount : "..."}</strong>
+          <span className="metric-label">ACTIVE GIGS</span>
+          <strong className="mono">{activeGigsCount !== null ? activeGigsCount : "..."}</strong>
           <span className="mono metric-foot">SOLANA DEVNET</span>
         </div>
         <div className="hero-metric">

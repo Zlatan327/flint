@@ -146,8 +146,8 @@ export const createEmptyPassport = (address?: string): BuilderPassportData => ({
 export const defaultPassport: BuilderPassportData = createEmptyPassport();
 
 export const navItems = [
-  { label: "Prediction Market", href: "/markets" },
   { label: "Gig Escrow", href: "/exchange" },
+  { label: "Prediction Market", href: "/markets" },
   { label: "Builder Passport", href: "/passport" },
   { label: "Verification", href: "/#telemetry" },
   { label: "Protocol", href: "/protocol" },

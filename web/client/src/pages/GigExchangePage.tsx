@@ -18,8 +18,8 @@ export default function GigExchangePage() {
         <header className="category-hero">
           <div>
             <span className="category-kicker mono"><span className="status-dot status-dot-live" /> EXC / 001 · GIG EXCHANGE</span>
-            <h1>Find work.<br /><em>Keep identity private.</em></h1>
-            <p>Browse live gigs, submit without exposing your counterparty, and track the moment escrow routes to the worker.</p>
+            <h1>Find work. Post gigs.<br /><em>Fund milestones on Solana.</em></h1>
+            <p>Browse live gigs, negotiate terms, submit deliverables, and track the moment escrow routes to the worker.</p>
             <div className="category-actions"><a className="amber-button" href="#gigs">BROWSE OPEN GIGS <ArrowDownLeft size={15} /></a><a className="outline-button" href="#submissions">MY SUBMISSIONS <ArrowUpRight size={15} /></a></div>
           </div>
           <aside className="category-summary">

@@ -11,7 +11,7 @@ import { useFlintWallet } from "@/contexts/WalletContext";
 import { useEffect } from "react";
 
 export default function PredictionMarketPage() {
-  useEffect(() => { document.title = "Prediction Market | FLINT"; }, []);
+  useEffect(() => { document.title = "Delivery Risk Markets | FLINT"; }, []);
   const { connected, balance } = useFlintWallet();
   const displayBalance = connected && balance !== null ? `${balance.toFixed(2)} SOL` : "0.00 SOL";
 
@@ -21,9 +21,9 @@ export default function PredictionMarketPage() {
       <main>
         <header className="category-hero">
           <div>
-            <span className="category-kicker mono"><span className="status-dot status-dot-live" /> MKT / 001 · PREDICTION MARKET</span>
+            <span className="category-kicker mono"><span className="status-dot status-dot-live" /> MKT / 001 · DELIVERY RISK MARKETS</span>
             <h1>Price delivery.<br /><em>Trade the outcome.</em></h1>
-            <p>See current bets, open YES or NO positions, and keep your available balance visible while gigs move through settlement.</p>
+            <p>Stake on whether gigs deliver on time. A trust layer for the FLINT marketplace.</p>
             <div className="category-actions"><a className="amber-button" href="#book">VIEW CURRENT BETS <ArrowDownLeft size={15} /></a><a className="outline-button" href="#positions">MY POSITIONS <ArrowUpRight size={15} /></a></div>
           </div>
           <aside className="category-summary category-summary-market">
