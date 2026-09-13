@@ -8,6 +8,7 @@ import { Gig } from "@/lib/flint-data";
 import { fetchOnChainGigs } from "@/lib/flint-chain-sync";
 import { SubmitWorkModal } from "@/components/workspaces/SubmitWorkModal";
 import { DeliverableReviewModal } from "@/components/workspaces/DeliverableReviewModal";
+import { DisputePanel } from "@/components/workspaces/DisputePanel";
 import { placeMarketOrderOnChain, fetchOnChainMarkets, createMarketOnChain } from "@/lib/flint-market-client";
 import { PublicKey } from "@solana/web3.js";
 
@@ -397,6 +398,18 @@ export default function GigDetailPage() {
 
           {/* Right Column: Embedded Delivery Prediction Market Mini-Book */}
           <div>
+            {currentGig.status === "Disputed" && (
+              <DisputePanel
+                gigId={parseInt(gigId.replace(/[^0-9]/g, ""), 10) || 0}
+                disputeStatus="open"
+                disputeReason="Below Spec"
+                clientBond={(parseFloat(String(currentGig.budget).replace(/[^0-9.]/g, "")) || 0) * 0.1}
+                freelancerBond={(parseFloat(String(currentGig.budget).replace(/[^0-9.]/g, "")) || 0) * 0.1}
+                disputedAt={Date.now()}
+                isClient={Boolean(connected && walletAddress && currentGig.client && walletAddress.toLowerCase() === currentGig.client.toLowerCase())}
+                isFreelancer={Boolean(connected && walletAddress && currentGig.freelancer && walletAddress.toLowerCase() === currentGig.freelancer.toLowerCase())}
+              />
+            )}
             <div style={{ background: "rgba(10, 12, 16, 0.8)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "10px", padding: "1.5rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
                 <SectionLabel code="MKT / UNDERWRITE" tone="amber">Performance Insurance</SectionLabel>

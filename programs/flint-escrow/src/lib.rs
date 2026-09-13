@@ -40,6 +40,15 @@ pub mod flint_escrow {
         gig.status = EscrowStatus::Initialized;
         gig.is_delegated_to_er = false;
         gig.bump = ctx.bumps.gig_escrow;
+        
+        gig.submitted_at = 0;
+        gig.dispute_status = DisputeStatus::None;
+        gig.dispute_reason = None;
+        gig.evidence_hash = [0u8; 32];
+        gig.defense_hash = [0u8; 32];
+        gig.client_bond_lamports = 0;
+        gig.freelancer_bond_lamports = 0;
+        gig.disputed_at = 0;
 
         msg!("Flint: Gig #{} initialized for {} lamports", gig_id, total_amount);
         Ok(())
@@ -86,6 +95,7 @@ pub mod flint_escrow {
 
         gig.deliverable_hash = deliverable_hash;
         gig.status = EscrowStatus::Reviewing;
+        gig.submitted_at = Clock::get()?.unix_timestamp;
 
         msg!("Flint: Work submitted for Gig #{}. Moved to Reviewing state.", gig.gig_id);
         Ok(())
@@ -333,6 +343,114 @@ pub mod flint_escrow {
         msg!("Flint: Gig #{} cancelled. Refunded {} lamports to client", gig.gig_id, refund_amount);
         Ok(())
     }
+
+    pub fn raise_deliverable_dispute(
+        ctx: Context<RaiseDeliverableDispute>,
+        dispute_reason: DisputeReason,
+        evidence_hash: [u8; 32],
+    ) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        
+        // Must be in Reviewing status
+        require!(gig.status == EscrowStatus::Reviewing, EscrowError::InvalidStatus);
+        // Only client can raise
+        require!(gig.client == ctx.accounts.client.key(), EscrowError::Unauthorized);
+        
+        // Calculate bond: 10% of total_amount
+        let bond = gig.total_amount / 10;
+        require!(bond > 0, EscrowError::InvalidAmount);
+        
+        // Transfer bond from client to vault
+        let transfer_ix = anchor_lang::system_program::Transfer {
+            from: ctx.accounts.client.to_account_info(),
+            to: ctx.accounts.vault.to_account_info(),
+        };
+        anchor_lang::system_program::transfer(
+            CpiContext::new(ctx.accounts.system_program.to_account_info(), transfer_ix),
+            bond,
+        )?;
+        
+        gig.status = EscrowStatus::Disputed;
+        gig.dispute_status = DisputeStatus::Open;
+        gig.dispute_reason = Some(dispute_reason);
+        gig.evidence_hash = evidence_hash;
+        gig.client_bond_lamports = bond;
+        gig.disputed_at = Clock::get()?.unix_timestamp;
+        
+        msg!("Flint: Deliverable dispute raised. Reason: {:?}. Bond: {} lamports", gig.dispute_reason, bond);
+        Ok(())
+    }
+
+    pub fn contest_or_accept_dispute(
+        ctx: Context<ContestDispute>,
+        contest: bool,
+        defense_hash: [u8; 32],
+    ) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        
+        require!(gig.status == EscrowStatus::Disputed, EscrowError::InvalidStatus);
+        require!(gig.dispute_status == DisputeStatus::Open, EscrowError::InvalidStatus);
+        require!(gig.freelancer == ctx.accounts.freelancer.key(), EscrowError::Unauthorized);
+        
+        if contest {
+            // Freelancer contests — must stake matching bond
+            let bond = gig.client_bond_lamports;
+            
+            let transfer_ix = anchor_lang::system_program::Transfer {
+                from: ctx.accounts.freelancer.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+            };
+            anchor_lang::system_program::transfer(
+                CpiContext::new(ctx.accounts.system_program.to_account_info(), transfer_ix),
+                bond,
+            )?;
+            
+            gig.freelancer_bond_lamports = bond;
+            gig.defense_hash = defense_hash;
+            gig.dispute_status = DisputeStatus::Contested;
+            msg!("Flint: Dispute contested by freelancer. Bond: {} lamports", bond);
+        } else {
+            // Freelancer accepts the slash
+            gig.dispute_status = DisputeStatus::Accepted;
+            gig.status = EscrowStatus::ReadyForSettlement;
+            // When settling, payout goes to client (refund), minus protocol fee
+            msg!("Flint: Freelancer accepted dispute. Slash applied.");
+        }
+        
+        Ok(())
+    }
+
+    pub fn auto_release_timeout(ctx: Context<AutoRelease>) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        let now = Clock::get()?.unix_timestamp;
+        
+        // Case 1: Client never reviewed (7 days after submission)
+        if gig.status == EscrowStatus::Reviewing && gig.submitted_at > 0 {
+            let review_window = 7 * 24 * 60 * 60; // 7 days
+            require!(
+                now >= gig.submitted_at + review_window,
+                EscrowError::TimeoutNotReached
+            );
+            gig.status = EscrowStatus::ReadyForSettlement;
+            msg!("Flint: Review timeout reached. Auto-releasing to freelancer.");
+            return Ok(());
+        }
+        
+        // Case 2: Freelancer never contested (72 hours after dispute)
+        if gig.status == EscrowStatus::Disputed && gig.dispute_status == DisputeStatus::Open {
+            let contest_window = 72 * 60 * 60; // 72 hours
+            require!(
+                now >= gig.disputed_at + contest_window,
+                EscrowError::TimeoutNotReached
+            );
+            gig.dispute_status = DisputeStatus::Accepted;
+            gig.status = EscrowStatus::ReadyForSettlement;
+            msg!("Flint: Contest timeout reached. Slash auto-accepted.");
+            return Ok(());
+        }
+        
+        Err(EscrowError::InvalidStatus.into())
+    }
 }
 
 #[derive(Accounts)]
@@ -496,6 +614,52 @@ pub struct CancelEscrow<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct RaiseDeliverableDispute<'info> {
+    #[account(mut)]
+    pub client: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
+        bump = gig_escrow.bump
+    )]
+    pub gig_escrow: Account<'info, GigEscrow>,
+    #[account(
+        mut,
+        seeds = [b"vault", gig_escrow.key().as_ref()],
+        bump
+    )]
+    /// CHECK: PDA vault holding escrow funds
+    pub vault: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ContestDispute<'info> {
+    #[account(mut)]
+    pub freelancer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
+        bump = gig_escrow.bump
+    )]
+    pub gig_escrow: Account<'info, GigEscrow>,
+    #[account(
+        mut,
+        seeds = [b"vault", gig_escrow.key().as_ref()],
+        bump
+    )]
+    /// CHECK: PDA vault holding escrow funds
+    pub vault: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AutoRelease<'info> {
+    #[account(mut)]
+    pub gig_escrow: Account<'info, GigEscrow>,
+}
+
 #[account]
 pub struct GigEscrow {
     pub client: Pubkey,
@@ -512,10 +676,34 @@ pub struct GigEscrow {
     pub deliverable_hash: [u8; 32],
     pub is_delegated_to_er: bool,
     pub bump: u8,
+    pub submitted_at: i64,              // timestamp when work was submitted
+    pub dispute_status: DisputeStatus,   // dispute state
+    pub dispute_reason: Option<DisputeReason>,
+    pub evidence_hash: [u8; 32],        // client's evidence commitment
+    pub defense_hash: [u8; 32],         // freelancer's defense commitment  
+    pub client_bond_lamports: u64,       // client's dispute bond
+    pub freelancer_bond_lamports: u64,   // freelancer's contest bond
+    pub disputed_at: i64,               // when dispute was raised
 }
 
 impl GigEscrow {
-    pub const LEN: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 1 + 32 + 1 + 1 + 32;
+    pub const LEN: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 1 + 32 + 1 + 1 + 32 + 120;
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub enum DisputeReason {
+    Incomplete,      // Missing agreed deliverables
+    BelowSpec,       // Doesn't meet acceptance criteria
+    WrongScope,      // Delivered something different from brief
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub enum DisputeStatus {
+    None,
+    Open,            // Client raised dispute, waiting for freelancer response
+    Contested,       // Freelancer contested, awaiting arbitration
+    Accepted,        // Freelancer accepted the slash
+    Resolved,        // Arbiters voted, funds distributed
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
@@ -559,6 +747,10 @@ pub enum EscrowError {
     InvalidSettlementModel,
     #[msg("Gig cannot be cancelled or refunded under current status/deadline")]
     CannotCancelGig,
+    #[msg("Timeout period has not been reached yet")]
+    TimeoutNotReached,
+    #[msg("Invalid amount specified")]
+    InvalidAmount,
 }
 
 #[cfg(test)]
@@ -598,6 +790,14 @@ mod tests {
             deliverable_hash: [0; 32],
             is_delegated_to_er: false,
             bump: 0,
+            submitted_at: 0,
+            dispute_status: DisputeStatus::None,
+            dispute_reason: None,
+            evidence_hash: [0u8; 32],
+            defense_hash: [0u8; 32],
+            client_bond_lamports: 0,
+            freelancer_bond_lamports: 0,
+            disputed_at: 0,
         };
 
         // Initialization
@@ -616,5 +816,25 @@ mod tests {
         // Submit work
         gig.status = EscrowStatus::Reviewing;
         assert_eq!(gig.status, EscrowStatus::Reviewing);
+    }
+
+    #[test]
+    fn test_dispute_bond_calculation() {
+        let total_amount = 5000;
+        let bond = total_amount / 10;
+        assert_eq!(bond, 500);
+
+        let small_amount = 9;
+        let small_bond = small_amount / 10;
+        assert_eq!(small_bond, 0); // Testing round down to 0 which would trigger error
+    }
+
+    #[test]
+    fn test_timeout_constants() {
+        let review_window = 7 * 24 * 60 * 60; // 7 days
+        assert_eq!(review_window, 604800);
+
+        let contest_window = 72 * 60 * 60; // 72 hours
+        assert_eq!(contest_window, 259200);
     }
 }

@@ -26,6 +26,9 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
   const [disputeNote, setDisputeNote] = useState(false);
   const [disputeTx, setDisputeTx] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("Incomplete");
+  const [disputeEvidence, setDisputeEvidence] = useState("");
 
   if (!isOpen || !gig) return null;
 
@@ -436,109 +439,170 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
               )}
 
               {/* Action Buttons */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {isClient ? (
-                  <button
-                    type="button"
-                    disabled={loading || Boolean(isDisputed)}
-                    onClick={handleApproveAndRelease}
-                    style={{
-                      width: "100%",
-                      padding: "0.8rem",
-                      borderRadius: "8px",
-                      background: loading || isDisputed ? "#333" : "#10b981",
-                      color: loading || isDisputed ? "rgba(255,255,255,0.4)" : "#000",
-                      border: "none",
-                      fontWeight: 700,
-                      fontSize: "0.9rem",
-                      cursor: loading || isDisputed ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                    }}
-                    className="mono"
-                  >
-                    <Award size={16} />
-                    {loading ? "SETTLING ON-CHAIN..." : isDisputed ? "ESCROW FROZEN IN DISPUTE" : `APPROVE DELIVERABLE & RELEASE ${gig.budget}`}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled
-                    style={{
-                      width: "100%",
-                      padding: "0.8rem",
-                      borderRadius: "8px",
-                      background: "rgba(255, 255, 255, 0.04)",
-                      color: "rgba(255, 255, 255, 0.35)",
-                      border: "1px dashed rgba(255, 255, 255, 0.12)",
-                      fontWeight: 600,
-                      fontSize: "0.82rem",
-                      cursor: "not-allowed",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                    }}
-                    className="mono"
-                  >
-                    <Lock size={14} />
-                    {isFreelancer ? "AWAITING CLIENT APPROVAL (WORKER CANNOT APPROVE)" : "ONLY GIG CREATOR CAN APPROVE RELEASE"}
-                  </button>
-                )}
+              {showDisputeForm ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "12px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "8px" }}>
+                  <h4 style={{ margin: 0, color: "#f43f5e", fontSize: "0.9rem" }}>Raise a Dispute</h4>
+                  
+                  <div style={{ display: "flex", gap: "10px", flexDirection: "column" }}>
+                    <label style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>Reason:</label>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      {["Incomplete", "Below Spec", "Wrong Scope"].map((reason) => (
+                        <label key={reason} style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.8rem", color: "#fff" }}>
+                          <input
+                            type="radio"
+                            name="disputeReason"
+                            value={reason}
+                            checked={disputeReason === reason}
+                            onChange={(e) => setDisputeReason(e.target.value)}
+                          />
+                          {reason}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
 
-                {canDispute ? (
-                  <button
-                    type="button"
-                    disabled={loading || Boolean(isDisputed)}
-                    onClick={handleRaiseDispute}
-                    style={{
-                      width: "100%",
-                      padding: "0.65rem",
-                      borderRadius: "6px",
-                      background: isDisputed ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.06)",
-                      color: isDisputed ? "#ef4444" : "#f43f5e",
-                      border: isDisputed ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(239, 68, 68, 0.25)",
-                      fontSize: "0.78rem",
-                      fontWeight: 600,
-                      cursor: loading || isDisputed ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      transition: "all 160ms var(--ease-out)",
-                    }}
-                    className="mono"
-                  >
-                    <AlertTriangle size={13} />
-                    {loading ? "SUBMITTING DISPUTE..." : isDisputed ? "DISPUTE ACTIVE · ESCROW FROZEN ON L1" : "RAISE QUALITY DISPUTE / FREEZE ESCROW"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "6px",
-                      background: "transparent",
-                      color: "rgba(255, 255, 255, 0.25)",
-                      border: "1px solid rgba(255, 255, 255, 0.06)",
-                      fontSize: "0.72rem",
-                      cursor: "not-allowed",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                    }}
-                    className="mono"
-                  >
-                    <AlertTriangle size={12} />
-                    DISPUTES RESTRICTED TO CLIENT OR WORKER
-                  </button>
-                )}
-              </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>Evidence Description:</label>
+                    <textarea
+                      value={disputeEvidence}
+                      onChange={(e) => setDisputeEvidence(e.target.value)}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "4px", padding: "8px", color: "#fff", minHeight: "80px", fontFamily: "inherit" }}
+                      placeholder="Explain why this deliverable doesn't meet the requirements..."
+                    />
+                  </div>
+
+                  <div style={{ padding: "8px", background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "4px", color: "#f59e0b", fontSize: "0.75rem" }}>
+                    Warning: You must stake 10% of the gig value as a dispute bond. If the dispute is rejected, you lose this bond.
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowDisputeForm(false)}
+                      style={{ flex: 1, padding: "0.75rem", background: "transparent", color: "#a1a1aa", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem" }}
+                      className="mono"
+                    >
+                      CANCEL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDisputeForm(false);
+                        handleRaiseDispute();
+                      }}
+                      disabled={loading}
+                      style={{ flex: 2, padding: "0.75rem", background: "#ef4444", color: "#000", border: "none", borderRadius: "6px", cursor: loading ? "not-allowed" : "pointer", fontWeight: "bold", fontSize: "0.8rem" }}
+                      className="mono"
+                    >
+                      STAKE BOND & DISPUTE
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {isClient ? (
+                    <button
+                      type="button"
+                      disabled={loading || Boolean(isDisputed)}
+                      onClick={handleApproveAndRelease}
+                      style={{
+                        width: "100%",
+                        padding: "0.8rem",
+                        borderRadius: "8px",
+                        background: loading || isDisputed ? "#333" : "#10b981",
+                        color: loading || isDisputed ? "rgba(255,255,255,0.4)" : "#000",
+                        border: "none",
+                        fontWeight: 700,
+                        fontSize: "0.9rem",
+                        cursor: loading || isDisputed ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                      }}
+                      className="mono"
+                    >
+                      <Award size={16} />
+                      {loading ? "SETTLING ON-CHAIN..." : isDisputed ? "ESCROW FROZEN IN DISPUTE" : `APPROVE DELIVERABLE & RELEASE ${gig.budget}`}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      style={{
+                        width: "100%",
+                        padding: "0.8rem",
+                        borderRadius: "8px",
+                        background: "rgba(255, 255, 255, 0.04)",
+                        color: "rgba(255, 255, 255, 0.35)",
+                        border: "1px dashed rgba(255, 255, 255, 0.12)",
+                        fontWeight: 600,
+                        fontSize: "0.82rem",
+                        cursor: "not-allowed",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                      }}
+                      className="mono"
+                    >
+                      <Lock size={14} />
+                      {isFreelancer ? "AWAITING CLIENT APPROVAL (WORKER CANNOT APPROVE)" : "ONLY GIG CREATOR CAN APPROVE RELEASE"}
+                    </button>
+                  )}
+
+                  {canDispute ? (
+                    <button
+                      type="button"
+                      disabled={loading || Boolean(isDisputed)}
+                      onClick={() => setShowDisputeForm(true)}
+                      style={{
+                        width: "100%",
+                        padding: "0.65rem",
+                        borderRadius: "6px",
+                        background: isDisputed ? "rgba(239, 68, 68, 0.12)" : "transparent",
+                        color: isDisputed ? "#ef4444" : "#f43f5e",
+                        border: isDisputed ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(239, 68, 68, 0.25)",
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        cursor: loading || isDisputed ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 160ms var(--ease-out)",
+                      }}
+                      className="mono"
+                    >
+                      <AlertTriangle size={13} />
+                      {loading ? "SUBMITTING DISPUTE..." : isDisputed ? "DISPUTE ACTIVE · ESCROW FROZEN ON L1" : "DISPUTE DELIVERABLE"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      style={{
+                        width: "100%",
+                        padding: "0.6rem",
+                        borderRadius: "6px",
+                        background: "transparent",
+                        color: "rgba(255, 255, 255, 0.25)",
+                        border: "1px solid rgba(255, 255, 255, 0.06)",
+                        fontSize: "0.72rem",
+                        cursor: "not-allowed",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                      }}
+                      className="mono"
+                    >
+                      <AlertTriangle size={12} />
+                      DISPUTES RESTRICTED TO CLIENT OR WORKER
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

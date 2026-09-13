@@ -375,6 +375,33 @@ export default function BuilderPassportPage() {
               ))}
             </div>
           </div>
+
+          {/* Dispute History & Ethos Network */}
+          <div style={{ background: "rgba(10, 12, 16, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "1.5rem" }}>
+            <SectionLabel code="DSP / 004" tone="emerald">Arbitration Record</SectionLabel>
+            <h2 style={{ fontSize: "1.2rem", margin: "0.3rem 0 1rem" }}>Dispute History</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div style={{ padding: "12px", background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "6px" }}>
+                  <span className="mono" style={{ fontSize: "0.7rem", color: "#10b981", display: "block", marginBottom: "4px" }}>DISPUTES WON</span>
+                  <strong className="mono" style={{ fontSize: "1.2rem", color: "#fff" }}>0</strong>
+                </div>
+                <div style={{ padding: "12px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "6px" }}>
+                  <span className="mono" style={{ fontSize: "0.7rem", color: "#ef4444", display: "block", marginBottom: "4px" }}>DISPUTES LOST</span>
+                  <strong className="mono" style={{ fontSize: "1.2rem", color: "#fff" }}>0</strong>
+                </div>
+              </div>
+              <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <span className="mono" style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.7)", display: "block" }}>ETHOS CREDIBILITY</span>
+                  <span className="mono" style={{ fontSize: "0.85rem", color: "#38bdf8", fontWeight: 600 }}>Ethos Score: Coming Soon</span>
+                </div>
+                <a href="https://ethos.network" target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", padding: "6px", background: "rgba(56, 189, 248, 0.1)", borderRadius: "4px", display: "flex" }}>
+                  <ExternalLink size={16} />
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 
