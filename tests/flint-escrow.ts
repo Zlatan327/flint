@@ -130,4 +130,62 @@ describe("flint-escrow", () => {
     }
   });
 
+  it("Client can raise deliverable dispute with 10% bond", async () => {
+    const evidenceHash = Array.from(Buffer.alloc(32, 2));
+    await program.methods
+      .raiseDeliverableDispute({ incomplete: {} }, evidenceHash)
+      .accounts({
+        client: client.publicKey,
+        gigEscrow: gigEscrowPda,
+        vault: vaultPda,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([client])
+      .rpc();
+
+    const gigAccount = await program.account.gigEscrow.fetch(gigEscrowPda);
+    assert.ok(Object.keys(gigAccount.status)[0] === "disputed");
+    assert.ok(Object.keys(gigAccount.disputeStatus)[0] === "open");
+    assert.equal(gigAccount.clientBondLamports.toString(), gigAccount.totalAmount.divn(10).toString());
+  });
+
+  it("Freelancer can accept slash", async () => {
+    await program.methods
+      .contestOrAcceptDispute(false, Array.from(Buffer.alloc(32, 0)))
+      .accounts({
+        freelancer: freelancer.publicKey,
+        gigEscrow: gigEscrowPda,
+        vault: vaultPda,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([freelancer])
+      .rpc();
+
+    const gigAccount = await program.account.gigEscrow.fetch(gigEscrowPda);
+    assert.ok(Object.keys(gigAccount.disputeStatus)[0] === "accepted");
+  });
+
+  it("Settle accepted dispute refunds client and returns bond", async () => {
+    const preBal = await provider.connection.getBalance(client.publicKey);
+
+    await program.methods
+      .settleAcceptedDispute()
+      .accounts({
+        gigEscrow: gigEscrowPda,
+        vault: vaultPda,
+        client: client.publicKey,
+        treasury: treasury.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([client])
+      .rpc();
+
+    const gigAccount = await program.account.gigEscrow.fetch(gigEscrowPda);
+    assert.ok(Object.keys(gigAccount.status)[0] === "completed");
+    assert.ok(Object.keys(gigAccount.disputeStatus)[0] === "resolved");
+
+    const postBal = await provider.connection.getBalance(client.publicKey);
+    assert.ok(postBal > preBal);
+  });
+
 });

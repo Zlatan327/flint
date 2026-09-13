@@ -141,13 +141,17 @@ export const DeliverableReviewModal: React.FC<DeliverableReviewModalProps> = ({
         throw new Error("Gig does not have a valid on-chain escrow PDA on Devnet.");
       }
 
-      setStatusText("Awaiting wallet signature to freeze escrow on Devnet...");
+      setStatusText("Awaiting wallet signature to stake 10% bond and freeze escrow on Devnet...");
       const callerPubkey = new PublicKey(walletAddress);
+
+      const reasonCode = disputeReason === "Below Spec" ? 1 :
+                         disputeReason === "Wrong Scope" ? 2 : 0;
 
       const sig = await raiseDisputeOnChain(
         gigEscrowPda,
         callerPubkey,
-        provider
+        provider,
+        reasonCode
       );
 
       setDisputeTx(sig);

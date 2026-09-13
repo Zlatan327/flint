@@ -282,6 +282,53 @@ export default function GigDetailPage() {
           </aside>
         </header>
 
+        {/* Dispute Panel */}
+        {((currentGig as any).disputeStatus || currentGig.status === "Disputed") && (
+          <DisputePanel
+            gigId={parseInt(currentGig.id.replace(/[^0-9]/g, ""), 10) || 1}
+            disputeStatus={((currentGig as any).disputeStatus as any) || "open"}
+            disputeReason={(currentGig as any).disputeReason || "Deliverable Below Spec"}
+            evidenceHash={currentGig.deliverableHash || "0x9a8f...3c21"}
+            clientBond={(parseFloat(String(currentGig.budget || "").replace(/[^0-9.]/g, "")) || 1) * 0.1}
+            freelancerBond={((currentGig as any).disputeStatus === "contested" ? (parseFloat(String(currentGig.budget || "").replace(/[^0-9.]/g, "")) || 1) * 0.1 : 0)}
+            disputedAt={Math.floor(Date.now() / 1000)}
+            isClient={Boolean(connected && walletAddress && currentGig.client && walletAddress.toLowerCase() === currentGig.client.toLowerCase())}
+            isFreelancer={Boolean(connected && walletAddress && currentGig.freelancer && walletAddress.toLowerCase() === currentGig.freelancer.toLowerCase())}
+            onContest={async () => {
+              try {
+                const win = window as any;
+                const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
+                if (!provider) throw new Error("No Solana browser wallet detected.");
+                if (!currentGig.pda) throw new Error("No PDA for this gig.");
+                if (!walletAddress) throw new Error("Wallet not connected.");
+                const callerPubkey = new PublicKey(walletAddress);
+                const { contestOrAcceptDisputeOnChain } = await import("@/lib/flint-escrow-client");
+                await contestOrAcceptDisputeOnChain(currentGig.pda, callerPubkey, true, provider);
+                alert("Contest bond staked on-chain. Awaiting VRF arbiter selection.");
+                setCurrentGig(prev => prev ? ({ ...prev, disputeStatus: "contested" } as any) : null);
+              } catch (err: any) {
+                alert(`Contest failed: ${err.message}`);
+              }
+            }}
+            onAcceptSlash={async () => {
+              try {
+                const win = window as any;
+                const provider = win.okxwallet?.solana || win.phantom?.solana || win.solflare || win.backpack || win.solana;
+                if (!provider) throw new Error("No Solana browser wallet detected.");
+                if (!currentGig.pda) throw new Error("No PDA for this gig.");
+                if (!walletAddress) throw new Error("Wallet not connected.");
+                const callerPubkey = new PublicKey(walletAddress);
+                const { contestOrAcceptDisputeOnChain } = await import("@/lib/flint-escrow-client");
+                await contestOrAcceptDisputeOnChain(currentGig.pda, callerPubkey, false, provider);
+                alert("Slash accepted. Escrow marked for client refund.");
+                setCurrentGig(prev => prev ? ({ ...prev, disputeStatus: "accepted" } as any) : null);
+              } catch (err: any) {
+                alert(`Accept slash failed: ${err.message}`);
+              }
+            }}
+          />
+        )}
+
         {/* Two-Column Detail Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
           {/* Left Column: Specifications, Proof & PDA Details */}

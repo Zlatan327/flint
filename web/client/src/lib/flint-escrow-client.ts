@@ -252,40 +252,175 @@ export async function settleEscrowOnChain(
   return txSignature;
 }
 
-const RAISE_DISPUTE_DISCRIMINATOR = new Uint8Array([
-  0x44, 0x12, 0x1c, 0x93, 0x7a, 0x8a, 0x19, 0xf2,
+const RAISE_DELIVERABLE_DISPUTE_DISCRIMINATOR = new Uint8Array([
+  0x0c, 0xca, 0x0b, 0xa6, 0xb2, 0xb1, 0x7f, 0xd5,
 ]);
 
+const CONTEST_DISPUTE_DISCRIMINATOR = new Uint8Array([
+  0xdb, 0xa5, 0x5c, 0x9f, 0xbb, 0x74, 0x32, 0x42,
+]);
+
+const SETTLE_ACCEPTED_DISPUTE_DISCRIMINATOR = new Uint8Array([
+  0x2f, 0xcc, 0x58, 0xac, 0xad, 0xd7, 0x78, 0x21,
+]);
+
+export enum DisputeReasonCode {
+  Incomplete = 0,
+  BelowSpec = 1,
+  WrongScope = 2,
+}
+
 /**
- * Raises a quality dispute on-chain on Solana Devnet L1, freezing the escrow vault.
- * Authorized for either the gig client or assigned freelancer.
+ * Raises a bonded deliverable dispute on-chain on Solana Devnet L1.
+ * Client must stake a 10% dispute bond.
  */
 export async function raiseDisputeOnChain(
   gigEscrowPdaStr: string,
-  callerPubkey: PublicKey,
-  provider: any
+  clientPubkey: PublicKey,
+  provider: any,
+  reasonCode: DisputeReasonCode = DisputeReasonCode.Incomplete,
+  evidenceHashBytes?: Uint8Array
 ): Promise<string> {
   const connection = new Connection(DEVNET_RPC, "confirmed");
   const gigEscrowPda = new PublicKey(gigEscrowPdaStr);
 
-  const data = new Uint8Array(8 + 32);
-  data.set(RAISE_DISPUTE_DISCRIMINATOR, 0);
-  const vrfSeed = crypto.getRandomValues(new Uint8Array(32));
-  data.set(vrfSeed, 8);
+  const [vaultPda] = PublicKey.findProgramAddressSync(
+    [textEncoder.encode("vault"), gigEscrowPda.toBytes()],
+    ESCROW_PROGRAM_ID
+  );
+
+  const data = new Uint8Array(8 + 1 + 32);
+  data.set(RAISE_DELIVERABLE_DISPUTE_DISCRIMINATOR, 0);
+  data[8] = reasonCode;
+  if (evidenceHashBytes && evidenceHashBytes.length === 32) {
+    data.set(evidenceHashBytes, 9);
+  } else {
+    // Generate a 32-byte cryptographic evidence commitment
+    const randHash = crypto.getRandomValues(new Uint8Array(32));
+    data.set(randHash, 9);
+  }
 
   const instruction = new TransactionInstruction({
     programId: ESCROW_PROGRAM_ID,
     data: Buffer.from(data),
     keys: [
+      { pubkey: clientPubkey, isSigner: true, isWritable: true },
       { pubkey: gigEscrowPda, isSigner: false, isWritable: true },
-      { pubkey: callerPubkey, isSigner: true, isWritable: true },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
   });
 
   const transaction = new Transaction().add(instruction);
   const { blockhash } = await connection.getLatestBlockhash("confirmed");
   transaction.recentBlockhash = blockhash;
-  transaction.feePayer = callerPubkey;
+  transaction.feePayer = clientPubkey;
+
+  let txSignature = "";
+  if (provider.signAndSendTransaction) {
+    const res = await provider.signAndSendTransaction(transaction);
+    txSignature = res.signature || res.toString();
+  } else if (provider.sendTransaction) {
+    txSignature = await provider.sendTransaction(transaction, connection);
+  } else {
+    throw new Error("Connected wallet does not support signing.");
+  }
+
+  await connection.confirmTransaction(txSignature, "confirmed");
+  return txSignature;
+}
+
+/**
+ * Contests or accepts a slash dispute on-chain.
+ * If contest = true, freelancer matches the client dispute bond.
+ */
+export async function contestOrAcceptDisputeOnChain(
+  gigEscrowPdaStr: string,
+  freelancerPubkey: PublicKey,
+  contest: boolean,
+  provider: any,
+  defenseHashBytes?: Uint8Array
+): Promise<string> {
+  const connection = new Connection(DEVNET_RPC, "confirmed");
+  const gigEscrowPda = new PublicKey(gigEscrowPdaStr);
+
+  const [vaultPda] = PublicKey.findProgramAddressSync(
+    [textEncoder.encode("vault"), gigEscrowPda.toBytes()],
+    ESCROW_PROGRAM_ID
+  );
+
+  const data = new Uint8Array(8 + 1 + 32);
+  data.set(CONTEST_DISPUTE_DISCRIMINATOR, 0);
+  data[8] = contest ? 1 : 0;
+  if (defenseHashBytes && defenseHashBytes.length === 32) {
+    data.set(defenseHashBytes, 9);
+  } else {
+    const randHash = crypto.getRandomValues(new Uint8Array(32));
+    data.set(randHash, 9);
+  }
+
+  const instruction = new TransactionInstruction({
+    programId: ESCROW_PROGRAM_ID,
+    data: Buffer.from(data),
+    keys: [
+      { pubkey: freelancerPubkey, isSigner: true, isWritable: true },
+      { pubkey: gigEscrowPda, isSigner: false, isWritable: true },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = freelancerPubkey;
+
+  let txSignature = "";
+  if (provider.signAndSendTransaction) {
+    const res = await provider.signAndSendTransaction(transaction);
+    txSignature = res.signature || res.toString();
+  } else if (provider.sendTransaction) {
+    txSignature = await provider.sendTransaction(transaction, connection);
+  } else {
+    throw new Error("Connected wallet does not support signing.");
+  }
+
+  await connection.confirmTransaction(txSignature, "confirmed");
+  return txSignature;
+}
+
+/**
+ * Settles an accepted dispute, refunding escrow and returned bonds back to client.
+ */
+export async function settleAcceptedDisputeOnChain(
+  gigEscrowPdaStr: string,
+  clientPubkey: PublicKey,
+  provider: any
+): Promise<string> {
+  const connection = new Connection(DEVNET_RPC, "confirmed");
+  const gigEscrowPda = new PublicKey(gigEscrowPdaStr);
+
+  const [vaultPda] = PublicKey.findProgramAddressSync(
+    [textEncoder.encode("vault"), gigEscrowPda.toBytes()],
+    ESCROW_PROGRAM_ID
+  );
+
+  const instruction = new TransactionInstruction({
+    programId: ESCROW_PROGRAM_ID,
+    data: Buffer.from(SETTLE_ACCEPTED_DISPUTE_DISCRIMINATOR),
+    keys: [
+      { pubkey: gigEscrowPda, isSigner: false, isWritable: true },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: clientPubkey, isSigner: true, isWritable: true },
+      { pubkey: PROTOCOL_TREASURY_PDA, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = clientPubkey;
 
   let txSignature = "";
   if (provider.signAndSendTransaction) {

@@ -189,6 +189,8 @@ pub mod flint_escrow {
                 EscrowError::Unauthorized
             );
         }
+        require!(gig.dispute_status == DisputeStatus::None, EscrowError::InvalidStatus);
+        require!(gig.status != EscrowStatus::Disputed, EscrowError::InvalidStatus);
         require!(
             gig.status == EscrowStatus::ReadyForSettlement 
                 || gig.status == EscrowStatus::Reviewing 
@@ -275,26 +277,6 @@ pub mod flint_escrow {
         Ok(())
     }
 
-    /// Triggers dispute handling using MagicBlock VRF for arbiter selection
-    pub fn raise_dispute_vrf(ctx: Context<RaiseDispute>, vrf_seed: [u8; 32]) -> Result<()> {
-        let gig = &mut ctx.accounts.gig_escrow;
-        // Security Patch SEC-06: Restrict dispute raising to client or assigned freelancer
-        require!(
-            ctx.accounts.caller.key() == gig.client || ctx.accounts.caller.key() == gig.freelancer,
-            EscrowError::Unauthorized
-        );
-        require!(
-            gig.status == EscrowStatus::InProgress 
-                || gig.status == EscrowStatus::Reviewing 
-                || gig.status == EscrowStatus::ActiveInRollup,
-            EscrowError::InvalidStatus
-        );
-
-        gig.status = EscrowStatus::Disputed;
-        msg!("Flint: Dispute opened for Gig #{}. Initializing MagicBlock VRF oracle with seed {:?}", gig.gig_id, vrf_seed);
-        Ok(())
-    }
-
     /// Allows the client to cancel an unassigned gig or claim a refund if freelancer defaults past deadline (SEC-04)
     pub fn cancel_or_refund_escrow(ctx: Context<CancelEscrow>) -> Result<()> {
         let gig = &mut ctx.accounts.gig_escrow;
@@ -353,8 +335,6 @@ pub mod flint_escrow {
         
         // Must be in Reviewing status
         require!(gig.status == EscrowStatus::Reviewing, EscrowError::InvalidStatus);
-        // Only client can raise
-        require!(gig.client == ctx.accounts.client.key(), EscrowError::Unauthorized);
         
         // Calculate bond: 10% of total_amount
         let bond = gig.total_amount / 10;
@@ -390,7 +370,6 @@ pub mod flint_escrow {
         
         require!(gig.status == EscrowStatus::Disputed, EscrowError::InvalidStatus);
         require!(gig.dispute_status == DisputeStatus::Open, EscrowError::InvalidStatus);
-        require!(gig.freelancer == ctx.accounts.freelancer.key(), EscrowError::Unauthorized);
         
         if contest {
             // Freelancer contests — must stake matching bond
@@ -412,8 +391,6 @@ pub mod flint_escrow {
         } else {
             // Freelancer accepts the slash
             gig.dispute_status = DisputeStatus::Accepted;
-            gig.status = EscrowStatus::ReadyForSettlement;
-            // When settling, payout goes to client (refund), minus protocol fee
             msg!("Flint: Freelancer accepted dispute. Slash applied.");
         }
         
@@ -444,12 +421,183 @@ pub mod flint_escrow {
                 EscrowError::TimeoutNotReached
             );
             gig.dispute_status = DisputeStatus::Accepted;
-            gig.status = EscrowStatus::ReadyForSettlement;
             msg!("Flint: Contest timeout reached. Slash auto-accepted.");
             return Ok(());
         }
         
         Err(EscrowError::InvalidStatus.into())
+    }
+
+    /// Settles an accepted dispute: returns escrow and client bond to client (refund minus protocol rake)
+    pub fn settle_accepted_dispute(ctx: Context<SettleAcceptedDispute>) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        require!(gig.dispute_status == DisputeStatus::Accepted, EscrowError::InvalidStatus);
+
+        let escrow_amount = if gig.remaining_amount > 0 {
+            gig.remaining_amount
+        } else {
+            gig.total_amount
+        };
+
+        let protocol_fee = (escrow_amount as u128)
+            .saturating_mul(PROTOCOL_FEE_BPS as u128)
+            .checked_div(10_000)
+            .unwrap_or(0) as u64;
+
+        let client_refund = escrow_amount
+            .saturating_sub(protocol_fee)
+            .saturating_add(gig.client_bond_lamports)
+            .saturating_add(gig.freelancer_bond_lamports);
+
+        let gig_escrow_key = gig.key();
+        let vault_bump = ctx.bumps.vault;
+        let vault_seeds = &[b"vault", gig_escrow_key.as_ref(), &[vault_bump]];
+        let signer = &[&vault_seeds[..]];
+
+        if client_refund > 0 {
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.client.to_account_info(),
+                    },
+                    signer,
+                ),
+                client_refund,
+            )?;
+        }
+
+        if protocol_fee > 0 {
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.treasury.to_account_info(),
+                    },
+                    signer,
+                ),
+                protocol_fee,
+            )?;
+        }
+
+        gig.remaining_amount = 0;
+        gig.client_bond_lamports = 0;
+        gig.freelancer_bond_lamports = 0;
+        gig.status = EscrowStatus::Completed;
+        gig.dispute_status = DisputeStatus::Resolved;
+
+        msg!(
+            "Flint: Accepted dispute settled. Refunded {} lamports to client, {} lamports to treasury",
+            client_refund,
+            protocol_fee
+        );
+        Ok(())
+    }
+
+    /// Resolves an arbitration outcome for contested disputes: distributes pro-rata escrow and bonds
+    pub fn resolve_arbitration(
+        ctx: Context<ResolveArbitration>,
+        slash_upheld: bool,
+        freelancer_payout_pct: u8,
+    ) -> Result<()> {
+        let gig = &mut ctx.accounts.gig_escrow;
+        require!(gig.status == EscrowStatus::Disputed, EscrowError::InvalidStatus);
+        require!(gig.dispute_status == DisputeStatus::Contested, EscrowError::InvalidStatus);
+        require!(freelancer_payout_pct <= 100, EscrowError::InvalidAmount);
+
+        let escrow_amount = if gig.remaining_amount > 0 {
+            gig.remaining_amount
+        } else {
+            gig.total_amount
+        };
+
+        let protocol_fee = (escrow_amount as u128)
+            .saturating_mul(PROTOCOL_FEE_BPS as u128)
+            .checked_div(10_000)
+            .unwrap_or(0) as u64;
+        let net_escrow = escrow_amount.saturating_sub(protocol_fee);
+
+        let freelancer_payout_from_escrow = (net_escrow as u128)
+            .saturating_mul(freelancer_payout_pct as u128)
+            .checked_div(100)
+            .unwrap_or(0) as u64;
+        let client_refund_from_escrow = net_escrow.saturating_sub(freelancer_payout_from_escrow);
+
+        let (freelancer_total, client_total) = if slash_upheld {
+            let c_total = client_refund_from_escrow
+                .saturating_add(gig.client_bond_lamports)
+                .saturating_add(gig.freelancer_bond_lamports);
+            (freelancer_payout_from_escrow, c_total)
+        } else {
+            let f_total = freelancer_payout_from_escrow
+                .saturating_add(gig.client_bond_lamports)
+                .saturating_add(gig.freelancer_bond_lamports);
+            (f_total, client_refund_from_escrow)
+        };
+
+        let gig_escrow_key = gig.key();
+        let vault_bump = ctx.bumps.vault;
+        let vault_seeds = &[b"vault", gig_escrow_key.as_ref(), &[vault_bump]];
+        let signer = &[&vault_seeds[..]];
+
+        if freelancer_total > 0 {
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.freelancer.to_account_info(),
+                    },
+                    signer,
+                ),
+                freelancer_total,
+            )?;
+        }
+
+        if client_total > 0 {
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.client.to_account_info(),
+                    },
+                    signer,
+                ),
+                client_total,
+            )?;
+        }
+
+        if protocol_fee > 0 {
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.treasury.to_account_info(),
+                    },
+                    signer,
+                ),
+                protocol_fee,
+            )?;
+        }
+
+        gig.remaining_amount = 0;
+        gig.client_bond_lamports = 0;
+        gig.freelancer_bond_lamports = 0;
+        gig.status = EscrowStatus::Completed;
+        gig.dispute_status = DisputeStatus::Resolved;
+
+        msg!(
+            "Flint: Arbitration resolved. Slash upheld: {}. Freelancer received: {}. Client received: {}. Fee: {}",
+            slash_upheld,
+            freelancer_total,
+            client_total,
+            protocol_fee
+        );
+        Ok(())
     }
 }
 
@@ -587,13 +735,6 @@ pub struct SettleEscrow<'info> {
 }
 
 #[derive(Accounts)]
-pub struct RaiseDispute<'info> {
-    #[account(mut)]
-    pub gig_escrow: Account<'info, GigEscrow>,
-    pub caller: Signer<'info>,
-}
-
-#[derive(Accounts)]
 pub struct CancelEscrow<'info> {
     #[account(
         mut,
@@ -620,6 +761,7 @@ pub struct RaiseDeliverableDispute<'info> {
     pub client: Signer<'info>,
     #[account(
         mut,
+        has_one = client @ EscrowError::Unauthorized,
         seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
         bump = gig_escrow.bump
     )]
@@ -640,6 +782,7 @@ pub struct ContestDispute<'info> {
     pub freelancer: Signer<'info>,
     #[account(
         mut,
+        has_one = freelancer @ EscrowError::Unauthorized,
         seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
         bump = gig_escrow.bump
     )]
@@ -658,6 +801,64 @@ pub struct ContestDispute<'info> {
 pub struct AutoRelease<'info> {
     #[account(mut)]
     pub gig_escrow: Account<'info, GigEscrow>,
+}
+
+#[derive(Accounts)]
+pub struct SettleAcceptedDispute<'info> {
+    #[account(
+        mut,
+        has_one = client @ EscrowError::Unauthorized,
+        seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
+        bump = gig_escrow.bump
+    )]
+    pub gig_escrow: Account<'info, GigEscrow>,
+    #[account(
+        mut,
+        seeds = [b"vault", gig_escrow.key().as_ref()],
+        bump
+    )]
+    /// CHECK: Vault PDA returning refund
+    pub vault: AccountInfo<'info>,
+    #[account(mut)]
+    pub client: Signer<'info>,
+    #[account(mut)]
+    /// CHECK: Protocol Treasury account receiving take rate
+    pub treasury: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveArbitration<'info> {
+    #[account(
+        mut,
+        seeds = [b"gig_escrow", gig_escrow.gig_id.to_le_bytes().as_ref()],
+        bump = gig_escrow.bump
+    )]
+    pub gig_escrow: Account<'info, GigEscrow>,
+    #[account(
+        mut,
+        seeds = [b"vault", gig_escrow.key().as_ref()],
+        bump
+    )]
+    /// CHECK: Vault PDA holding escrow and bonds
+    pub vault: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = client.key() == gig_escrow.client @ EscrowError::Unauthorized
+    )]
+    /// CHECK: Client account receiving refund/bond
+    pub client: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = freelancer.key() == gig_escrow.freelancer @ EscrowError::Unauthorized
+    )]
+    /// CHECK: Freelancer account receiving payout/bond
+    pub freelancer: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK: Protocol treasury
+    pub treasury: AccountInfo<'info>,
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[account]
@@ -687,17 +888,38 @@ pub struct GigEscrow {
 }
 
 impl GigEscrow {
-    pub const LEN: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 1 + 32 + 1 + 1 + 32 + 120;
+    pub const LEN: usize = 32 // client
+        + 32 // freelancer
+        + 8  // gig_id
+        + 8  // total_amount
+        + 8  // remaining_amount
+        + 8  // deadline
+        + 1  // milestones_count
+        + 1  // completed_milestones
+        + 1  // status
+        + 1  // settlement_model
+        + 1  // is_freelancer_assigned
+        + 32 // deliverable_hash
+        + 1  // is_delegated_to_er
+        + 1  // bump
+        + 8  // submitted_at
+        + 1  // dispute_status
+        + 2  // dispute_reason (Option<DisputeReason>)
+        + 32 // evidence_hash
+        + 32 // defense_hash
+        + 8  // client_bond_lamports
+        + 8  // freelancer_bond_lamports
+        + 8; // disputed_at
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug)]
 pub enum DisputeReason {
     Incomplete,      // Missing agreed deliverables
     BelowSpec,       // Doesn't meet acceptance criteria
     WrongScope,      // Delivered something different from brief
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug)]
 pub enum DisputeStatus {
     None,
     Open,            // Client raised dispute, waiting for freelancer response

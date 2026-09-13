@@ -163,25 +163,39 @@ pub mod flint_market {
         };
         let trader_net = gross_payout.saturating_sub(market_rake);
 
-        // Disburse earned lamports from market vault to trader and treasury
+        // Disburse earned lamports from market vault to trader and treasury safely via CPI
         if gross_payout > 0 {
-            **ctx.accounts.vault.try_borrow_mut_lamports()? = ctx
-                .accounts
-                .vault
-                .lamports()
-                .saturating_sub(gross_payout);
-            **ctx.accounts.trader.try_borrow_mut_lamports()? = ctx
-                .accounts
-                .trader
-                .lamports()
-                .saturating_add(trader_net);
+            let market_key = market.key();
+            let vault_bump = ctx.bumps.vault;
+            let vault_seeds = &[b"vault", market_key.as_ref(), &[vault_bump]];
+            let signer = &[&vault_seeds[..]];
+
+            if trader_net > 0 {
+                anchor_lang::system_program::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: ctx.accounts.vault.to_account_info(),
+                            to: ctx.accounts.trader.to_account_info(),
+                        },
+                        signer,
+                    ),
+                    trader_net,
+                )?;
+            }
 
             if market_rake > 0 {
-                **ctx.accounts.treasury.try_borrow_mut_lamports()? = ctx
-                    .accounts
-                    .treasury
-                    .lamports()
-                    .saturating_add(market_rake);
+                anchor_lang::system_program::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: ctx.accounts.vault.to_account_info(),
+                            to: ctx.accounts.treasury.to_account_info(),
+                        },
+                        signer,
+                    ),
+                    market_rake,
+                )?;
             }
         }
 
@@ -269,6 +283,7 @@ pub struct ClaimPayout<'info> {
     pub treasury: AccountInfo<'info>,
     #[account(mut)]
     pub trader: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[account]

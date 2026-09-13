@@ -90,6 +90,7 @@ describe("flint-market", () => {
           position: positionPda,
           treasury: treasury.publicKey,
           trader: trader1.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([trader1])
         .rpc();
@@ -125,6 +126,7 @@ describe("flint-market", () => {
         position: positionPda,
         treasury: treasury.publicKey,
         trader: trader1.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
       })
       .signers([trader1])
       .rpc();
